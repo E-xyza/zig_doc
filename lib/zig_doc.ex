@@ -37,7 +37,7 @@ defmodule ZigDoc do
 
   @doc false
   def add_zig_doc_config(docs, config) do
-    docs ++ Enum.map(config, &Generator.from_config/1)
+    docs ++ Enum.map(config, &Generator.modulenode_from_config/1)
   end
 
   ################################################################
