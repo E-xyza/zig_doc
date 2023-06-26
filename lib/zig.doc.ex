@@ -1,6 +1,6 @@
-defmodule ZigDoc do
+defmodule Zig.Doc do
 
-  alias ZigDoc.Generator
+  alias Zig.Doc.Generator
 
   @doc """
   Generates documentation for the given `project`, `vsn` (version)
@@ -36,7 +36,7 @@ defmodule ZigDoc do
   end
 
   @doc false
-  def add_zig_doc_config(docs, config) do
+  def add_zig_doc_config(docs, config, sema_source \\ Zig.Sema) do
     docs ++ Enum.map(config, &Generator.modulenode_from_config/1)
   end
 
