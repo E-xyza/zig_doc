@@ -32,12 +32,17 @@ defmodule Zig.Doc do
       |> config.retriever.docs_from_dir(config)
       |> add_zig_doc_config(zig_doc_options)
 
+    docs
+    |> List.first
+    |> Map.get(:docs)
+    |> dbg(limit: 25)
+
     find_formatter(config.formatter).run(docs, config)
   end
 
   @doc false
-  def add_zig_doc_config(docs, config, sema_source \\ Zig.Sema) do
-    docs ++ Enum.map(config, &Generator.modulenode_from_config/1)
+  def add_zig_doc_config(docs, config, sema_module \\ Zig.Sema) do
+    docs ++ Enum.map(config, &Generator.modulenode_from_config(&1, sema_module))
   end
 
   ################################################################
