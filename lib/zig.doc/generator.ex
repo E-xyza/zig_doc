@@ -69,7 +69,7 @@ defmodule Zig.Doc.Generator do
     %{acc | docs: [node | acc.docs]}
   end
 
-  defp obtain_content({:const, const, {name, _, _}}, acc, file_path, sema) do
+  defp obtain_content({:const, const = %{pub: true}, {name, _, _}}, acc, file_path, sema) do
     doc_ast =
       if doc = const.doc_comment do
         DocAST.parse!(doc, "text/markdown", file: file_path, line: const.position.line)

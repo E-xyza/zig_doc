@@ -1,2 +1,5 @@
 /// this is the foo type.
-const foo = i32;
+pub const foo = i32;
+
+/// non-pub functions are ignored
+const bar = i64;
