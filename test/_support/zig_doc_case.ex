@@ -12,8 +12,7 @@ defmodule Zig.Doc.Case do
   end
 
   def get_module(file) do
-    [module] =
-      Zig.Doc.add_zig_doc_config([], [module: [file: file]], Zig.SemaMock)
+    [module] = Zig.Doc.add_zig_doc_config([], [module: [file: file]], Zig.SemaMock)
     module
   end
 
@@ -23,13 +22,19 @@ defmodule Zig.Doc.Case do
 
   defmacro assert_code(string, data) do
     quote do
-      tgt = unquote(string)
-      |> Code.format_string!
-      |> IO.iodata_to_binary
+      tgt =
+        unquote(string)
+        |> Code.format_string!()
+        |> IO.iodata_to_binary()
 
-      assert tgt == unquote(data)
-      |> List.first
-      |> Macro.to_string()
+      # we'll never have multiple function heads, but here
+      # we need to be able to handle arrays and singular macros
+      # which is what types will give us.
+      assert tgt ==
+               unquote(data)
+               |> List.wrap
+               |> List.first()
+               |> Macro.to_string()
     end
   end
 end

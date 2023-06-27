@@ -1,5 +1,4 @@
 defmodule Zig.Doc do
-
   alias Zig.Doc.Generator
 
   @doc """
@@ -33,7 +32,7 @@ defmodule Zig.Doc do
       |> add_zig_doc_config(zig_doc_options)
 
     docs
-    |> List.first
+    |> List.first()
     |> Map.get(:docs)
     |> dbg(limit: 25)
 

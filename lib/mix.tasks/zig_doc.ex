@@ -4,7 +4,7 @@ defmodule Mix.Tasks.ZigDoc do
   @shortdoc "Generate documentation for the project"
   @requirements ["compile"]
 
-  @spec run([String.t], keyword) :: :ok
+  @spec run([String.t()], keyword) :: :ok
   @moduledoc """
 
   see `Mix.Tasks.Docs` for more information

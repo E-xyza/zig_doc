@@ -1,7 +1,7 @@
 defmodule Zig.Doc.Spec do
   alias Zig.Doc.Sema
 
-  @spec function_from_sema(Sema.fun) :: Macro.t
+  @spec function_from_sema(Sema.fun()) :: Macro.t()
 
   def function_from_sema(fun) do
     name = fun.name
@@ -9,5 +9,9 @@ defmodule Zig.Doc.Spec do
     args = Enum.map(fun.args, fn type -> {type, [], Elixir} end)
 
     {:"::", [], [{name, [], args}, return_type]}
+  end
+
+  def type_from_sema(type) do
+    {:"::", [], [{type.name, [], Elixir}, {type.def, [], Elixir}]}
   end
 end
