@@ -1,5 +1,6 @@
 defmodule Zig.Doc.Generator do
   alias ExDoc.DocAST
+  alias Zig.Doc.Spec
 
   def modulenode_from_config({id, options}, sema_module) do
     # options must include 'file' key
@@ -16,7 +17,7 @@ defmodule Zig.Doc.Generator do
       # TODO: needs source_path and source_url
       node = %ExDoc.ModuleNode{id: "#{id}", doc_line: 1, doc: doc_ast}
 
-      Enum.reduce(parsed_document.code, node, &obtain_content(&1, &2, file_path))
+      Enum.reduce(parsed_document.code, node, &obtain_content(&1, &2, file_path, sema))
 
     else
       :error -> Mix.raise("zig doc config error: configuration for module #{id} requires a `:file` option")
@@ -25,9 +26,7 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path) do
-    name = Keyword.fetch!(fn_parts, :name)
-
+  defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, sema) do
     doc_ast = if fndoc = fun.doc_comment do
       DocAST.parse!(fndoc, "text/markdown", [file: file_path, line: fun.position.line])
     end
@@ -35,6 +34,12 @@ defmodule Zig.Doc.Generator do
     name = Keyword.fetch!(fn_parts, :name)
     type = Keyword.fetch!(fn_parts, :type)
     params = Keyword.fetch!(fn_parts, :params)
+
+    # find the function in the sema
+    specs = sema.functions
+    |> Enum.find(&(&1.name == name))
+    |> Spec.function_from_sema
+    |> List.wrap
 
     param_string = params
     |> Enum.map(fn {var, _, type} -> "#{var}: #{type}" end)
@@ -48,11 +53,12 @@ defmodule Zig.Doc.Generator do
       name: name,
       arity: length(params),
       doc: doc_ast,
-      signature: signature
+      signature: signature,
+      specs: specs
     }
 
     %{acc | docs: [node | acc.docs]}
   end
 
-  defp obtain_content(_, acc, _), do: acc
+  defp obtain_content(_, acc, _, _), do: acc
 end

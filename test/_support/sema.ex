@@ -3,4 +3,4 @@ defmodule Zig.SemaAPI do
   @callback run_sema(Path.t) :: {:ok, json} | {:error, String.t}
 end
 
-Mox.defmock(Zig.Doc.Sema, for: Zig.SemaAPI)
+Mox.defmock(Zig.SemaMock, for: Zig.SemaAPI)
