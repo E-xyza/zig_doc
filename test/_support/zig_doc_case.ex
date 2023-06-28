@@ -32,7 +32,7 @@ defmodule Zig.Doc.Case do
       # which is what types will give us.
       assert tgt ==
                unquote(data)
-               |> List.wrap
+               |> List.wrap()
                |> List.first()
                |> Macro.to_string()
     end

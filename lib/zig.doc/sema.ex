@@ -1,15 +1,17 @@
 defmodule Zig.Doc.Sema do
   @type type :: atom
 
-  @type fun :: %{
-          name: atom,
-          return: type,
-          args: [type]
-        }
-
   @type decls :: %{
+          optional(:comment) => nil | String.t(),
           name: atom,
           type: type
+        }
+
+  @type fun :: %{
+          optional(:comment) => nil | String.t(),
+          name: atom,
+          return: type,
+          args: [type | decls]
         }
 
   @type collection :: %{

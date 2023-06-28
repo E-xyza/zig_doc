@@ -2,6 +2,7 @@
   ### fields
   <%= for field <- @fields do %>
   - `<%= field.name %>`: `<%= field.type %>`
+    <%= if comment = Map.get(field, :comment), do: comment %>
   <% end %>
   <% end %>
 
@@ -9,6 +10,7 @@
   ### consts
   <%= for const <- @consts do %>
   - `<%= const.name %>`: `<%= const.type %>`
+    <%= if comment = Map.get(const, :comment), do: comment %>
   <% end %>
   <% end %>
 
@@ -16,8 +18,16 @@
   ### functions
 
   <%= for function <- @functions do %>
-  <% arg_types = function.args |> Enum.map(&to_string/1) |> Enum.join(", ") %>
+  <% 
+    arg_types = function.args 
+    |> Enum.map(fn 
+      %{name: name, type: type} -> "#{name}: #{type}"
+      type -> to_string(type)
+    end) 
+    |> Enum.join(", ") 
+  %>
 
   - `<%= function.name %>`: `fn(<%= arg_types %>) <%= function.return %>`
+    <%= if comment = Map.get(function, :comment), do: comment %>
   <% end %>
   <% end %>

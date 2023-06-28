@@ -1,4 +1,4 @@
-defmodule ZigDocTest.Documentation.TypeIndirectTest do
+defmodule ZigDocTest.Documentation.TypeDirectTest do
   use Zig.Doc.Case, async: true
 
   alias Zig.Doc.Sema
@@ -19,7 +19,7 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
 
     expect_sema({:ok, Sema.new(types: [%{name: :foo, def: def}])})
 
-    assert %{typespecs: [type]} = get_module("test/_sources/type_indirect.zig")
+    assert %{typespecs: [type]} = get_module("test/_sources/type_direct.zig")
 
     assert :struct == type.type
 
@@ -42,9 +42,9 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
       |> Map.new()
 
     assert %{
-             "consts" => [{:code, _, ["bar"], _}, ": ", {:code, _, ["i32"], _}],
-             "fields" => [{:code, _, ["baz"], _}, ": ", {:code, _, ["i32"], _}],
-             "functions" => [{:code, _, ["quux"], _}, ": ", {:code, _, ["fn(foo) i32"], _}]
+             "consts" => [{:code, _, ["bar"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the bar const."],
+             "fields" => [{:code, _, ["baz"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the baz field."],
+             "functions" => [{:code, _, ["quux"], _}, ": ", {:code, _, ["fn(v: foo) i32"], _}, "\n this is the quux function."]
            } = chunks
 
     assert_code(

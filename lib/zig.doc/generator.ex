@@ -66,9 +66,7 @@ defmodule Zig.Doc.Generator do
     %{acc | docs: [node | acc.docs]}
   end
 
-  defp obtain_content({:const, const = %{pub: true}, {name, _, _}}, acc, file_path, sema) do
-
-
+  defp obtain_content({:const, const = %{pub: true}, {name, _, assignment}}, acc, file_path, sema) do
     # find the function in the sema
     cond do
       this_func = Enum.find(sema.functions, &(&1.name == name)) ->
@@ -96,13 +94,21 @@ defmodule Zig.Doc.Generator do
         %{acc | docs: [node | acc.docs]}
 
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
+        {type, extras} =
+          case {this_type.def, assignment} do
+            {atom, _} when is_atom(atom) ->
+              {atom, nil}
 
-        {type, extras} = case this_type.def do
-          atom when is_atom(atom) ->
-            {atom, nil}
-          typedef ->
-            {typedef.type, markdown_from_typedef(typedef)}
-        end
+            {typedef, {form, _, block}} when form in ~w(struct enum union)a ->
+              md = block
+              |> to_typedef
+              |> markdown_from_typedef()
+
+              {typedef.type, md}
+
+            {typedef, _} ->
+              {typedef.type, markdown_from_typedef(typedef)}
+          end
 
         doc_ast = doc_from(const, file_path, extras)
 
@@ -132,10 +138,68 @@ defmodule Zig.Doc.Generator do
   defp doc_from(payload, file_path, extras \\ nil) do
     cond do
       doc = payload.doc_comment ->
-        DocAST.parse!(doc <> "#{extras}", "text/markdown", file: file_path, line: payload.position.line)
+        DocAST.parse!(doc <> "#{extras}", "text/markdown",
+          file: file_path,
+          line: payload.position.line
+        )
+
       is_binary(extras) ->
         DocAST.parse!(extras, "text/markdown", file: file_path, line: payload.position.line)
-      true -> nil
+
+      true ->
+        nil
     end
   end
+
+  defp to_typedef(block) do
+    %{functions: [], fields: [], consts: []}
+    |> fields_to_parts(Keyword.fetch!(block, :fields))
+    |> decls_to_parts(Keyword.fetch!(block, :decls))
+  end
+
+  defp fields_to_parts(contents, [{:doc_comment, comment}, {name, type} | rest]) do
+    fields_to_parts(%{contents | fields: [%{name: name, type: type, comment: comment}]}, rest)
+  end
+
+  defp fields_to_parts(contents, [{name, type} | rest]) do
+    fields_to_parts(%{contents | fields: [%{name: name, type: type}]}, rest)
+  end
+
+  defp fields_to_parts(contents, [{:fn, %{pub: true, doc_comment: comment}, fn_parts} | rest]) do
+    name = Keyword.fetch!(fn_parts, :name)
+    type = Keyword.fetch!(fn_parts, :type)
+
+    args =
+      fn_parts
+      |> Keyword.fetch!(:params)
+      |> Enum.map(fn {name, _, type} -> %{name: name, type: type} end)
+
+    fields_to_parts(
+      %{
+        contents
+        | functions: [%{name: name, return: type, args: args, comment: comment} | contents.functions]
+      },
+      rest
+    )
+  end
+
+  defp fields_to_parts(contents, [_ | rest]), do: fields_to_parts(contents, rest)
+
+  defp fields_to_parts(contents, []), do: contents
+
+  defp decls_to_parts(contents, [
+         {:const, %{pub: true, doc_comment: comment}, {name, type, _}} | rest
+       ]) do
+    this_const = %{
+      name: name,
+      type: type,
+      comment: comment
+    }
+
+    decls_to_parts(%{contents | consts: [this_const | contents.consts]}, rest)
+  end
+
+  defp decls_to_parts(contents, [_ | rest]), do: decls_to_parts(contents, rest)
+
+  defp decls_to_parts(contents, []), do: contents
 end
