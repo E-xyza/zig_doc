@@ -6,6 +6,5 @@ const aaa = struct {
     }
 };
 
-
 /// this is the foo type.
 pub const foo = aaa;

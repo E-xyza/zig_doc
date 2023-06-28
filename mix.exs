@@ -26,7 +26,7 @@ defmodule ZigDoc.MixProject do
       # zig_doc is tied to specific versions of ex_doc.
       # it uses some forbidden "private" functions.
       {:ex_doc, "== 0.29.4"},
-      {:zig_parser, "~> 0.1.0"},
+      {:zig_parser, "== 0.1.6"},
       {:mox, "~> 1.0", only: :test}
     ]
   end

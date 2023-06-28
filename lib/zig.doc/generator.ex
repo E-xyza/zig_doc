@@ -25,7 +25,7 @@ defmodule Zig.Doc.Generator do
         )
 
       {{:error, reason}, :read, path} ->
-        Mix.raise("zig doc error: failure reading file at `#{path}` #{reason}")
+        Mix.raise("zig doc error: failure reading file at `#{path}` (#{reason})")
 
       {{:error, _reason}, :sema, path} ->
         Mix.raise("zig doc error: sema failed for `#{path}`")
@@ -68,6 +68,7 @@ defmodule Zig.Doc.Generator do
 
   defp obtain_content({:const, const = %{pub: true}, {name, _, assignment}}, acc, file_path, sema) do
     # find the function in the sema
+
     cond do
       this_func = Enum.find(sema.functions, &(&1.name == name)) ->
         doc_ast = doc_from(const, file_path)
@@ -126,8 +127,8 @@ defmodule Zig.Doc.Generator do
         this_const = Enum.find(sema.consts, &(&1.name == name)) ->
           doc_ast = doc_from(const, file_path)
 
-          signature = "#{this_const.name}: #{this_const.type}"
-          specs = {:"::", [], [{this_const.name, [], Elixir}, {this_const.type, [], Elixir}]}
+          signature = "#{name}: #{this_const.type}"
+          specs = {:"::", [], [{name, [], Elixir}, {this_const.type, [], Elixir}]}
 
           ## TODO: needs source_path and source_url
           node = %ExDoc.FunctionNode{
@@ -144,6 +145,29 @@ defmodule Zig.Doc.Generator do
       true ->
         acc
     end
+  end
+
+  defp obtain_content({:var, var = %{pub: true}, {name, _type, _}}, acc, file_path, sema) do
+    doc_ast = doc_from(var, file_path)
+
+    # obtain type from semantic analysis
+    this_var = Enum.find(sema.vars, &(&1.name == name))
+
+    signature = "#{name}: #{this_var.type}"
+
+    specs = {:"::", [], [{name, [], Elixir}, {this_var.type, [], Elixir}]}
+
+    node = %ExDoc.FunctionNode{
+      id: "#{name}",
+      name: name,
+      arity: 0,
+      doc: doc_ast,
+      signature: signature,
+      specs: specs,
+      group: :vars
+    }
+
+    %{acc | docs: [node | acc.docs]}
   end
 
   defp obtain_content(_, acc, _, _), do: acc
