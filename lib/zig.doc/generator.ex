@@ -123,6 +123,24 @@ defmodule Zig.Doc.Generator do
 
         %{acc | typespecs: [node | acc.typespecs]}
 
+        this_const = Enum.find(sema.consts, &(&1.name == name)) ->
+          doc_ast = doc_from(const, file_path)
+
+          signature = "#{this_const.name}: #{this_const.type}"
+          specs = {:"::", [], [{this_const.name, [], Elixir}, {this_const.type, [], Elixir}]}
+
+          ## TODO: needs source_path and source_url
+          node = %ExDoc.FunctionNode{
+            id: "#{name}",
+            name: name,
+            arity: 0,
+            doc: doc_ast,
+            signature: signature,
+            specs: specs,
+            group: :consts
+          }
+
+          %{acc | docs: [node | acc.docs]}
       true ->
         acc
     end
