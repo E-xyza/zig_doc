@@ -33,10 +33,7 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, sema) do
-    doc_ast =
-      if fndoc = fun.doc_comment do
-        DocAST.parse!(fndoc, "text/markdown", file: file_path, line: fun.position.line)
-      end
+    doc_ast = doc_from(fun, file_path)
 
     name = Keyword.fetch!(fn_parts, :name)
     type = Keyword.fetch!(fn_parts, :type)
@@ -70,14 +67,13 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content({:const, const = %{pub: true}, {name, _, _}}, acc, file_path, sema) do
-    doc_ast =
-      if doc = const.doc_comment do
-        DocAST.parse!(doc, "text/markdown", file: file_path, line: const.position.line)
-      end
+
 
     # find the function in the sema
     cond do
       this_func = Enum.find(sema.functions, &(&1.name == name)) ->
+        doc_ast = doc_from(const, file_path)
+
         specs =
           this_func
           |> Spec.function_from_sema()
@@ -101,7 +97,17 @@ defmodule Zig.Doc.Generator do
 
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
 
+        {type, extras} = case this_type.def do
+          atom when is_atom(atom) ->
+            {atom, nil}
+          typedef ->
+            {typedef.type, markdown_from_typedef(typedef)}
+        end
+
+        doc_ast = doc_from(const, file_path, extras)
+
         node = %ExDoc.TypeNode{
+          type: type,
           id: "#{name}",
           name: name,
           signature: "#{name}",
@@ -117,4 +123,19 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content(_, acc, _, _), do: acc
+
+  require EEx
+  file = Path.join(__DIR__, "markdown_from_typedef.md.eex")
+  EEx.function_from_file(:defp, :markdown_from_typedef, file, [:assigns])
+
+  @spec doc_from(map(), String.t(), String.t() | nil) :: DocAST.t()
+  defp doc_from(payload, file_path, extras \\ nil) do
+    cond do
+      doc = payload.doc_comment ->
+        DocAST.parse!(doc <> "#{extras}", "text/markdown", file: file_path, line: payload.position.line)
+      is_binary(extras) ->
+        DocAST.parse!(extras, "text/markdown", file: file_path, line: payload.position.line)
+      true -> nil
+    end
+  end
 end

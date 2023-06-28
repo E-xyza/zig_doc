@@ -11,7 +11,13 @@ defmodule Zig.Doc.Spec do
     {:"::", [], [{name, [], args}, return_type]}
   end
 
-  def type_from_sema(type) do
-    {:"::", [], [{type.name, [], Elixir}, {type.def, [], Elixir}]}
+  def type_from_sema(type = %{def: defn}) when is_atom(defn) do
+    {:"::", [], [{type.name, [], Elixir}, {defn, [], Elixir}]}
+  end
+
+  def type_from_sema(type = %{def: defn}) do
+    struct = Enum.map(defn.fields, &{:"::", [], [{&1.name, [], Elixir}, {&1.type, [], Elixir}]})
+
+    {:"::", [], [{type.name, [], Elixir}, {:{}, [], struct}]}
   end
 end

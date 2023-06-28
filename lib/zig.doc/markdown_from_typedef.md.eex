@@ -1,0 +1,23 @@
+  <%= unless @fields == [] do %>
+  ### fields
+  <%= for field <- @fields do %>
+  - `<%= field.name %>`: `<%= field.type %>`
+  <% end %>
+  <% end %>
+
+  <%= unless @consts == [] do %>
+  ### consts
+  <%= for const <- @consts do %>
+  - `<%= const.name %>`: `<%= const.type %>`
+  <% end %>
+  <% end %>
+
+  <%= unless @functions == [] do %>
+  ### functions
+
+  <%= for function <- @functions do %>
+  <% arg_types = function.args |> Enum.map(&to_string/1) |> Enum.join(", ") %>
+
+  - `<%= function.name %>`: `fn(<%= arg_types %>) <%= function.return %>`
+  <% end %>
+  <% end %>

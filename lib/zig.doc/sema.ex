@@ -13,7 +13,8 @@ defmodule Zig.Doc.Sema do
         }
 
   @type collection :: %{
-          vars: [decls],
+          type: :struct | :enum | :union,
+          fields: [decls],
           consts: [decls],
           functions: [fun]
         }
@@ -24,7 +25,7 @@ defmodule Zig.Doc.Sema do
         }
 
   @type file :: %{
-          functions: [function],
+          functions: [fun],
           consts: [decls],
           vars: [decls],
           types: [typedef]
