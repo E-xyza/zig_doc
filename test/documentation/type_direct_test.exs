@@ -12,7 +12,7 @@ defmodule ZigDocTest.Documentation.TypeDirectTest do
         %{
           name: :quux,
           return: :i32,
-          args: [:foo]
+          params: [:foo]
         }
       ]
     }
@@ -42,9 +42,24 @@ defmodule ZigDocTest.Documentation.TypeDirectTest do
       |> Map.new()
 
     assert %{
-             "consts" => [{:code, _, ["bar"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the bar const."],
-             "fields" => [{:code, _, ["baz"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the baz field."],
-             "functions" => [{:code, _, ["quux"], _}, ": ", {:code, _, ["fn(v: foo) i32"], _}, "\n this is the quux function."]
+             "consts" => [
+               {:code, _, ["bar"], _},
+               ": ",
+               {:code, _, ["i32"], _},
+               "\n this is the bar const."
+             ],
+             "fields" => [
+               {:code, _, ["baz"], _},
+               ": ",
+               {:code, _, ["i32"], _},
+               "\n this is the baz field."
+             ],
+             "functions" => [
+               {:code, _, ["quux"], _},
+               ": ",
+               {:code, _, ["fn(v: foo) i32"], _},
+               "\n this is the quux function."
+             ]
            } = chunks
 
     assert_code(

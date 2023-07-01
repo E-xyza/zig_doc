@@ -11,7 +11,7 @@ defmodule Zig.Doc.Sema do
           optional(:comment) => nil | String.t(),
           name: atom,
           return: type,
-          args: [type | decls]
+          params: [type | decls]
         }
 
   @type collection :: %{

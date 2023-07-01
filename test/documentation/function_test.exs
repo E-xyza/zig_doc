@@ -4,7 +4,7 @@ defmodule ZigDocTest.Documentation.FunctionTest do
   alias Zig.Doc.Sema
 
   test "function-level documentation is generated" do
-    expect_sema({:ok, Sema.new(functions: [%{name: :foo, return: :i32, args: [:i32]}])})
+    expect_sema({:ok, Sema.new(functions: [%{name: :foo, return: :i32, params: [:i32]}])})
 
     assert %{docs: [function]} = get_module("test/_sources/function.zig")
 

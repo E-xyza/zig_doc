@@ -19,7 +19,7 @@
 
   <%= for function <- @functions do %>
   <% 
-    arg_types = function.args 
+    arg_types = function.params 
     |> Enum.map(fn 
       %{name: name, type: type} -> "#{name}: #{type}"
       type -> to_string(type)

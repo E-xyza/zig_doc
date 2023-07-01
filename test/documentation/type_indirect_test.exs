@@ -12,7 +12,7 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
         %{
           name: :quux,
           return: :i32,
-          args: [:foo]
+          params: [:foo]
         }
       ]
     }
