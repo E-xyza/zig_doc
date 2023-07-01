@@ -8,7 +8,7 @@ defmodule ZigDocTest.Documentation.FunctionTest do
 
     assert %{docs: [function]} = get_module("test/_sources/function.zig")
 
-    assert [{:p, [], [" this is the function foo"], %{}}] = function.doc
+    assert [{:p, [], ["this is the function foo"], %{}}] = function.doc
     assert "foo(value: i32) i32" = function.signature
 
     assert_code(
@@ -17,5 +17,7 @@ defmodule ZigDocTest.Documentation.FunctionTest do
       """,
       function.specs
     )
+
+    assert :Functions = function.group
   end
 end

@@ -8,7 +8,7 @@ defmodule ZigDocTest.Documentation.ConstTest do
 
     assert %{docs: [function]} = get_module("test/_sources/const.zig")
 
-    assert [{:p, [], [" this is the const foo."], %{}}] = function.doc
+    assert [{:p, [], ["this is the const foo."], %{}}] = function.doc
     assert "foo: i32" = function.signature
 
     assert_code(
@@ -18,6 +18,6 @@ defmodule ZigDocTest.Documentation.ConstTest do
       function.specs
     )
 
-    assert :consts = function.group
+    assert :Constants = function.group
   end
 end

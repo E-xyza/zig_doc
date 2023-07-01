@@ -8,7 +8,7 @@ defmodule ZigDocTest.Documentation.TypeBasicTest do
 
     assert %{typespecs: [type]} = get_module("test/_sources/type_basic.zig")
 
-    assert [{:p, [], [" this is the foo type."], %{}}] = type.doc
+    assert [{:p, [], ["this is the foo type."], %{}}] = type.doc
     assert "foo" = type.signature
 
     assert_code(

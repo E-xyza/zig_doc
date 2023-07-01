@@ -1,4 +1,4 @@
-defmodule ZigDocTest.Documentation.ConstTest do
+defmodule ZigDocTest.Documentation.VarTest do
   use Zig.Doc.Case, async: true
 
   alias Zig.Doc.Sema
@@ -8,7 +8,7 @@ defmodule ZigDocTest.Documentation.ConstTest do
 
     assert %{docs: [function]} = get_module("test/_sources/var.zig")
 
-    assert [{:p, [], [" this is the variable foo."], %{}}] = function.doc
+    assert [{:p, [], ["this is the variable foo."], %{}}] = function.doc
     assert "foo: i32" = function.signature
 
     assert_code(
@@ -18,6 +18,6 @@ defmodule ZigDocTest.Documentation.ConstTest do
       function.specs
     )
 
-    assert :vars = function.group
+    assert :Variables = function.group
   end
 end

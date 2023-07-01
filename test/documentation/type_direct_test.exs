@@ -23,7 +23,7 @@ defmodule ZigDocTest.Documentation.TypeDirectTest do
 
     assert :struct == type.type
 
-    assert [{:p, [], [" this is the foo type."], %{}} | rest] = type.doc
+    assert [{:p, [], ["this is the foo type."], %{}} | rest] = type.doc
     assert "foo" = type.signature
 
     chunks =

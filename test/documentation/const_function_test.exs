@@ -8,7 +8,7 @@ defmodule ZigDocTest.Documentation.ConstFunctionTest do
 
     assert %{docs: [function]} = get_module("test/_sources/const_function.zig")
 
-    assert [{:p, [], [" this is the function bar"], %{}}] = function.doc
+    assert [{:p, [], ["this is the function bar"], %{}}] = function.doc
 
     # note that we lose the signature because we won't be digging too hard to find
     # the rest.
@@ -21,5 +21,7 @@ defmodule ZigDocTest.Documentation.ConstFunctionTest do
       """,
       function.specs
     )
+
+    assert :Functions = function.group
   end
 end

@@ -87,7 +87,8 @@ defmodule Zig.Doc.Generator do
       arity: length(params),
       doc: doc_ast(fun, file_path),
       signature: signature,
-      specs: specs
+      specs: specs,
+      group: :Functions
     }
 
     %{acc | docs: [node | acc.docs]}
