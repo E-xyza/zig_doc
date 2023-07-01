@@ -107,21 +107,12 @@ defmodule Zig.Doc do
       ExDoc.Markdown.put_markdown_processor(processor)
     end
 
-    config.retriever |> dbg(limit: 25)
-
     docs =
       config.source_beam
       |> config.retriever.docs_from_dir(config)
-      |> testy
       |> add_zig_doc_config(zig_doc_options)
 
     find_formatter(config.formatter).run(docs, config)
-  end
-
-  defp testy(yo) do
-    Enum.find(yo, fn x -> x.id == "Zig" end)
-    |> dbg(limit: 25)
-    yo
   end
 
   @doc false
