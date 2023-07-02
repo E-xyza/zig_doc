@@ -11,8 +11,12 @@ defmodule Zig.Doc.Case do
     end
   end
 
+  @default_exdoc_config %{source_url_pattern: ""}
+
   def get_module(file) do
-    [module] = Zig.Doc.add_zig_doc_config([], [module: [file: file]], Zig.SemaMock)
+    [module] =
+      Zig.Doc.add_zig_doc_config([], @default_exdoc_config, [module: [file: file]], Zig.SemaMock)
+
     module
   end
 

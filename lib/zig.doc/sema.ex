@@ -33,6 +33,6 @@ defmodule Zig.Doc.Sema do
         }
 
   def new(addin \\ []) do
-    Enum.into(addin, %{functions: [], consts: [], types: []})
+    Enum.into(addin, %{functions: [], decls: [], types: []})
   end
 end

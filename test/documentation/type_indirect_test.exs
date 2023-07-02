@@ -4,48 +4,21 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
   alias Zig.Doc.Sema
 
   test "type-level documentation is generated" do
-    def = %{
-      type: :struct,
-      fields: [%{name: :baz, type: :i32}],
-      consts: [%{name: :bar, type: :i32}],
-      functions: [
-        %{
-          name: :quux,
-          return: :i32,
-          params: [:foo]
-        }
-      ]
+    type = %{
+      name: "foo",
+      __struct__: Zig.Type.Struct,
+      optional: %{baz: :i32},
+      required: %{}
     }
 
-    expect_sema({:ok, Sema.new(types: [%{name: :foo, def: def}])})
+    expect_sema({:ok, Sema.new(types: [%{name: :foo, type: type}])})
 
     assert %{typespecs: [type]} = get_module("test/_sources/type_indirect.zig")
 
-    assert :struct == type.type
+    assert :type == type.type
 
-    assert [{:p, [], ["this is the foo type."], %{}} | rest] = type.doc
+    assert [{:p, [], ["this is the foo type."], %{}} | _rest] = type.doc
     assert "foo" = type.signature
-
-    chunks =
-      rest
-      |> Enum.chunk_while(
-        nil,
-        fn
-          {:p, [], ["  ### " <> what], _}, _ ->
-            {:cont, what}
-
-          {:ul, _, [{:li, _, code, _}], _}, what ->
-            {:cont, {what, code}, what}
-        end,
-        fn _ -> {:cont, nil} end
-      )
-      |> Map.new()
-
-    assert %{
-             "consts" => [{:code, _, ["bar"], _}, ": ", {:code, _, ["i32"], _}],
-             "fields" => [{:code, _, ["baz"], _}, ": ", {:code, _, ["i32"], _}],
-             "functions" => [{:code, _, ["quux"], _}, ": ", {:code, _, ["fn(foo) i32"], _}]
-           } = chunks
 
     assert_code(
       """

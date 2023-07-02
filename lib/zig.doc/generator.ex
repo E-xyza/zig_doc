@@ -26,14 +26,13 @@ defmodule Zig.Doc.Generator do
   defp trim_first_space(<<32, next, rest::binary>>) when next != 32, do: <<next, rest::binary>>
   defp trim_first_space(line), do: line
 
-  def modulenode_from_config({id, options}, sema_module) do
+  def modulenode_from_config({id, options}, exdoc_config, sema_module) do
     # options must include 'file' key
     with {:ok, file_path} <- Keyword.fetch(options, :file),
          {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path},
          {{:ok, sema}, :sema, _} <- {sema_module.run_sema(file_path), :sema, file_path} do
       parsed_document = Zig.Parser.parse(file)
 
-      # TODO: needs source_path and source_url
       node = %ExDoc.ModuleNode{
         id: "#{id}",
         doc_line: 1,
@@ -43,10 +42,16 @@ defmodule Zig.Doc.Generator do
         group: :"zig code",
         module: :beam,
         docs_groups: [:Functions, :Types, :Constants, :Variables],
-        type: :module
+        type: :module,
+        source_path: file_path,
+        source_url: source_url(file_path, 1, exdoc_config)
       }
 
-      Enum.reduce(parsed_document.code, node, &obtain_content(&1, &2, file_path, sema))
+      Enum.reduce(
+        parsed_document.code,
+        node,
+        &obtain_content(&1, &2, file_path, exdoc_config, sema)
+      )
     else
       :error ->
         Mix.raise(
@@ -61,7 +66,7 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, sema) do
+  defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, exdoc_config, sema) do
     if should_ignore?(fun) do
       acc
     else
@@ -83,30 +88,31 @@ defmodule Zig.Doc.Generator do
 
       signature = "#{name}(#{param_string}) #{render_type(type)}"
 
-      # TODO: needs source_path and source_url
-      node =
-        %ExDoc.FunctionNode{
-          id: "#{name}",
-          name: name,
-          arity: length(params),
-          doc: doc_ast(fun, file_path),
-          signature: signature,
-          specs: specs,
-          group: :Functions
-        }
-        |> dbg(limit: 25)
+      node = %ExDoc.FunctionNode{
+        id: "#{name}",
+        name: name,
+        arity: length(params),
+        doc: doc_ast(fun, file_path),
+        signature: signature,
+        specs: specs,
+        group: :Functions,
+        source_path: file_path,
+        source_url: source_url(file_path, fun.position.line, exdoc_config)
+      }
 
       %{acc | docs: [node | acc.docs]}
     end
   end
 
   defp obtain_content(
-         {:const, const = %{pub: true}, {name, _, _assignment}},
+         {:const, const = %{pub: true}, {name, _, assignment}},
          acc,
          file_path,
+         exdoc_config,
          sema
        ) do
     # find the function in the sema
+
     cond do
       should_ignore?(const) ->
         acc
@@ -124,7 +130,6 @@ defmodule Zig.Doc.Generator do
 
         signature = "#{name}(#{param_string}) #{render_type(this_func.return)}"
 
-        # TODO: needs source_path and source_url
         node = %ExDoc.FunctionNode{
           id: "#{name}",
           name: name,
@@ -132,7 +137,9 @@ defmodule Zig.Doc.Generator do
           doc: doc_ast(const, file_path),
           signature: signature,
           specs: specs,
-          group: :Functions
+          group: :Functions,
+          source_path: file_path,
+          source_url: source_url(file_path, const.position.line, exdoc_config)
         }
 
         %{acc | docs: [node | acc.docs]}
@@ -140,13 +147,20 @@ defmodule Zig.Doc.Generator do
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
         name = this_type.name
 
+        extras =
+          assignment
+          |> process_body
+          |> markdown_from_typedef
+
         node = %ExDoc.TypeNode{
           type: :type,
           id: "#{name}",
           name: name,
           signature: "#{name}",
-          doc: doc_ast(const, file_path),
-          spec: Spec.type_from_sema(this_type)
+          doc: doc_ast(const, file_path, extras: extras),
+          spec: Spec.type_from_sema(this_type),
+          source_path: file_path,
+          source_url: source_url(file_path, const.position.line, exdoc_config)
         }
 
         %{acc | typespecs: [node | acc.typespecs]}
@@ -163,7 +177,9 @@ defmodule Zig.Doc.Generator do
           doc: doc_ast(const, file_path),
           signature: signature,
           specs: [spec],
-          group: :Constants
+          group: :Constants,
+          source_path: file_path,
+          source_url: source_url(file_path, const.position.line, exdoc_config)
         }
 
         %{acc | docs: [node | acc.docs]}
@@ -173,7 +189,13 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content({:var, var = %{pub: true}, {name, _type, _}}, acc, file_path, sema) do
+  defp obtain_content(
+         {:var, var = %{pub: true}, {name, _type, _}},
+         acc,
+         file_path,
+         exdoc_config,
+         sema
+       ) do
     # obtain type from semantic analysis
     cond do
       should_ignore?(var) ->
@@ -195,7 +217,9 @@ defmodule Zig.Doc.Generator do
           signature: signature,
           specs: specs,
           group: :Variables,
-          annotations: annotations
+          annotations: annotations,
+          source_path: file_path,
+          source_url: source_url(file_path, var.position.line, exdoc_config)
         }
 
         %{acc | docs: [node | acc.docs]}
@@ -205,7 +229,7 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content(_, acc, _, _), do: acc
+  defp obtain_content(_, acc, _, _, _), do: acc
 
   require EEx
   file = Path.join(__DIR__, "markdown_from_typedef.md.eex")
@@ -261,5 +285,67 @@ defmodule Zig.Doc.Generator do
       _ ->
         []
     end
+  end
+
+  defp source_url(file_path, line, exdoc_config) do
+    exdoc_config.source_url_pattern
+    |> String.replace("%{path}", file_path)
+    |> String.replace("%{line}", to_string(line))
+  end
+
+  @empty_extras %{fields: [], consts: [], functions: []}
+  defp process_body({:struct, _, opts}) do
+    @empty_extras
+    |> process_fields(Keyword.get(opts, :fields, []))
+    |> process_consts(Keyword.get(opts, :decls, []))
+  end
+
+  defp process_body(_), do: @empty_extras
+
+  defp process_fields(acc, [{:doc_comment, comment}, {field, type} | rest]) do
+    process_fields(
+      %{acc | fields: [%{name: field, type: type, comment: comment} | acc.fields]},
+      rest
+    )
+  end
+
+  defp process_fields(acc, [{field, type} | rest]) do
+    process_fields(
+      %{acc | fields: [%{name: field, type: type, comment: nil} | acc.fields]},
+      rest
+    )
+  end
+
+  defp process_fields(acc, [{:fn, %{pub: true, doc_comment: comment}, opts} | rest]) do
+    params =
+      opts
+      |> Keyword.fetch!(:params)
+      |> Enum.map(fn {name, _, type} -> %{name: name, type: type} end)
+
+    fun = %{
+      params: params,
+      name: Keyword.fetch!(opts, :name),
+      return: Keyword.fetch!(opts, :type),
+      comment: comment
+    }
+
+    process_fields(
+      %{acc | functions: [fun | acc.functions]},
+      rest
+    )
+  end
+
+  defp process_fields(acc, [_ | rest]), do: process_fields(acc, rest)
+
+  defp process_fields(acc, []), do: acc
+
+  defp process_consts(acc, decls) do
+    %{
+      acc
+      | consts: Enum.flat_map(decls, fn
+        {:const, %{pub: true, doc_comment: comment}, {name, type, _}} -> [%{name: name, type: type, comment: comment}]
+        _ -> []
+      end)
+    }
   end
 end

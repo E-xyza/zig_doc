@@ -4,63 +4,44 @@ defmodule ZigDocTest.Documentation.TypeDirectTest do
   alias Zig.Doc.Sema
 
   test "type-level documentation is generated" do
-    def = %{
-      type: :struct,
-      fields: [%{name: :baz, type: :i32}],
-      consts: [%{name: :bar, type: :i32}],
-      functions: [
-        %{
-          name: :quux,
-          return: :i32,
-          params: [:foo]
-        }
-      ]
+    type = %{
+      name: "foo",
+      __struct__: Zig.Type.Struct,
+      optional: %{baz: :i32},
+      required: %{}
     }
 
-    expect_sema({:ok, Sema.new(types: [%{name: :foo, def: def}])})
+    expect_sema({:ok, Sema.new(types: [%{name: :foo, type: type}])})
 
     assert %{typespecs: [type]} = get_module("test/_sources/type_direct.zig")
 
-    assert :struct == type.type
+    assert :type == type.type
 
     assert [{:p, [], ["this is the foo type."], %{}} | rest] = type.doc
     assert "foo" = type.signature
 
-    chunks =
-      rest
-      |> Enum.chunk_while(
-        nil,
-        fn
-          {:p, [], ["  ### " <> what], _}, _ ->
-            {:cont, what}
+    assert [
+             {:h3, _, ["fields"], _},
+             {:ul, _, [field], _},
+             {:h3, _, ["consts"], _},
+             {:ul, _, [const], _},
+             {:h3, _, ["functions"], _},
+             {:ul, _, [function], _}
+           ] = rest
 
-          {:ul, _, [{:li, _, code, _}], _}, what ->
-            {:cont, {what, code}, what}
-        end,
-        fn _ -> {:cont, nil} end
-      )
-      |> Map.new()
+    assert {:li, _,
+            [{:code, _, ["baz"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the baz field."],
+            _} = field
 
-    assert %{
-             "consts" => [
-               {:code, _, ["bar"], _},
-               ": ",
-               {:code, _, ["i32"], _},
-               "\n this is the bar const."
-             ],
-             "fields" => [
-               {:code, _, ["baz"], _},
-               ": ",
-               {:code, _, ["i32"], _},
-               "\n this is the baz field."
-             ],
-             "functions" => [
-               {:code, _, ["quux"], _},
-               ": ",
-               {:code, _, ["fn(v: foo) i32"], _},
-               "\n this is the quux function."
-             ]
-           } = chunks
+    assert {:li, _,
+            [{:code, _, ["bar"], _}, ": ", {:code, _, ["i32"], _}, "\n this is the bar const."],
+            _} = const
+
+    assert {:li, _,
+            [
+              {:code, _, ["fn quux(v: foo) i32"], _},
+              "\n this is the quux function."
+            ], _} = function
 
     assert_code(
       """

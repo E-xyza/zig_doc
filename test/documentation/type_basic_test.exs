@@ -4,7 +4,7 @@ defmodule ZigDocTest.Documentation.TypeBasicTest do
   alias Zig.Doc.Sema
 
   test "type-level documentation is generated" do
-    expect_sema({:ok, Sema.new(types: [%{name: :foo, def: :i32}])})
+    expect_sema({:ok, Sema.new(types: [%{name: :foo, type: :i32}])})
 
     assert %{typespecs: [type]} = get_module("test/_sources/type_basic.zig")
 

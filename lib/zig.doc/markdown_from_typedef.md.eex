@@ -1,33 +1,33 @@
-  <%= unless @fields == [] do %>
-  ### fields
-  <%= for field <- @fields do %>
-  - `<%= field.name %>`: `<%= field.type %>`
-    <%= if comment = Map.get(field, :comment), do: comment %>
-  <% end %>
-  <% end %>
+<%= unless @fields == [] do %>
+### fields
+<%= for field <- @fields do %>
+- `<%= field.name %>`: `<%= field.type %>`
+  <%= if comment = Map.get(field, :comment), do: comment %>
+<% end %>
+<% end %>
 
-  <%= unless @consts == [] do %>
-  ### consts
-  <%= for const <- @consts do %>
-  - `<%= const.name %>`: `<%= const.type %>`
-    <%= if comment = Map.get(const, :comment), do: comment %>
-  <% end %>
-  <% end %>
+<%= unless @consts == [] do %>
+### consts
+<%= for const <- @consts do %>
+- `<%= const.name %>`: `<%= const.type %>`
+  <%= if comment = Map.get(const, :comment), do: comment %>
+<% end %>
+<% end %>
 
-  <%= unless @functions == [] do %>
-  ### functions
+<%= unless @functions == [] do %>
+### functions
 
-  <%= for function <- @functions do %>
-  <% 
-    arg_types = function.params 
-    |> Enum.map(fn 
-      %{name: name, type: type} -> "#{name}: #{type}"
-      type -> to_string(type)
-    end) 
-    |> Enum.join(", ") 
-  %>
+<%= for function <- @functions do %>
+<% 
+  arg_types = function.params 
+  |> Enum.map(fn 
+    %{name: name, type: type} -> "#{name}: #{type}"
+    type -> to_string(type)
+  end) 
+  |> Enum.join(", ") 
+%>
 
-  - `<%= function.name %>`: `fn(<%= arg_types %>) <%= function.return %>`
-    <%= if comment = Map.get(function, :comment), do: comment %>
-  <% end %>
-  <% end %>
+- `fn <%= function.name %>(<%= arg_types %>) <%= function.return %>`
+  <%= if comment = Map.get(function, :comment), do: comment %>
+<% end %>
+<% end %>

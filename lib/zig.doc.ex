@@ -110,14 +110,15 @@ defmodule Zig.Doc do
     docs =
       config.source_beam
       |> config.retriever.docs_from_dir(config)
-      |> add_zig_doc_config(zig_doc_options)
+      |> add_zig_doc_config(config, zig_doc_options)
 
     find_formatter(config.formatter).run(docs, config)
   end
 
   @doc false
-  def add_zig_doc_config(docs, config, sema_module \\ Zig.Sema) do
-    docs ++ Enum.map(config, &Generator.modulenode_from_config(&1, sema_module))
+  def add_zig_doc_config(docs, exdoc_config, zig_doc_options, sema_module \\ Zig.Sema) do
+    docs ++
+      Enum.map(zig_doc_options, &Generator.modulenode_from_config(&1, exdoc_config, sema_module))
   end
 
   ################################################################

@@ -46,6 +46,8 @@ defmodule Zig.Doc.Spec do
 
   defp wrap(name), do: {name, [], Elixir}
 
+  defp render_typedef(type) when is_atom(type), do: wrap(type)
+
   defp render_typedef(type = %struct{}) do
     case {struct, type} do
       {Zig.Type.Struct, %{name: "stub_erl_nif." <> rest}} ->
