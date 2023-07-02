@@ -14,6 +14,7 @@ def project do
   [
     ...
     aliases: [docs: "zig_doc", ...]
+    ...
   ]
 end
 ```
@@ -27,7 +28,7 @@ The package can be installed by adding `zig_doc` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:zig_doc, "== 0.1.0"}
+    {:zig_doc, "~> 0.1.0"}
   ]
 end
 ```

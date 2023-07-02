@@ -1,6 +1,7 @@
 defmodule Zig.Doc.Generator do
   alias ExDoc.DocAST
   alias Zig.Doc.Spec
+  @moduledoc false
 
   def doc_ast(content, file_path, opts \\ []) do
     if document = content.doc_comment do

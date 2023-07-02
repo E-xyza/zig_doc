@@ -1,4 +1,5 @@
 defmodule Zig.Doc.Spec do
+  @moduledoc false
   alias Zig.Doc.Sema
 
   @spec function_from_sema(Sema.fun()) :: Macro.t()

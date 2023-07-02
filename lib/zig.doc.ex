@@ -1,83 +1,75 @@
 defmodule Zig.Doc do
   @moduledoc """
-  Translates the docstrings from your Zig code into Elixir documentation.
+  Incorporates Zig documentation from selected files into Elixir projects.
 
-  For instructions on how to incorporate this into an Elixir project,
-  consult `Mix.Tasks.ZigDoc`
+  ## Usage
+
+  1. Include the zig files you wish to document in your project docs:
+    ```elixir
+      def project do
+        [
+          docs: [
+            ...
+            zig_doc: [name_of_module: [file: "path/to/file.zig"]]
+          ]
+        ]
+      end
+    ```
+
+  2. (optional) alias `Zig.Doc` in your `mix.exs`:
+    ```elixir
+    def project do
+      [
+        ...
+        aliases: [
+          docs: ["zig_doc"]
+        ]
+        ...
+      ]
+    end
+    ```
+    > ### Note {: .info }
+    >
+    > This step is required if you want HexDocs.pm to include the zig
+    > documentation with your main documentation.
 
   ## Documentation forms
 
-  Currently, Zigler recognizes four types of code segments which should be
-  documented.
+  Currently, Zigler recognizes the following forms of documentation:
 
-  - functions
-  - types
-  - values
-  - errors
+  - **files**
 
-  ### Functions
+    This form is set using the `//!` at the top of a document, and will
+    be used as the "module-level" documentation for the ExDoc result.
 
-  functions have the following signature:
+  - **functions**
 
-  `pub fn <identifier>(<arguments>) <type> {`
+    Public functions: `pub const <identifier> = <value that is a function>;`
+    and publically declared functions: `pub fn <identifier>(<arguments>) <type> { <block> }`
+    are both recognized and converted to ExDoc-style function documentation.
 
-  and may have the property of being `comptime` which is due to either the
-  function being itself a `comptime` function or it having a `comptime`
-  argument.
+  - **types**
 
-  **NB** only `pub` functions are documented in Zigler, following the Elixir
-  philosophy that only public functions should be documented.
+    `pub const <type> = <expression that is a type>;` is recognized and
+    converted into ExDoc-style type documentation.
 
-  ### Types
+  - **constants**
 
-  types have the following signature:
+    `pub const <identifier> = <expression that is a constant>;` is recognized
+    and converted into ExDoc-style function documentation under the category
+    `Constants`.
 
-  `pub const <identifier>=<value>;`
+  - **variables**
 
-  ### Values
+    `pub var <identifier> = ...;` is recognized and converted into ExDoc-style
+    function documentation under the category `Variables`.
 
-  values can have one of the following signatures:
-
-  - `pub const <identifier>=<value>;`
-  - `pub var <identifier>=<value>;`
-
-  Note that the constant value form is indistinguishable from the type form
-  without doing a full parse and evaluation of the Zig code.  In order to
-  avoid doing this, to disambiguate between the two, you must prepend constant
-  *value* docststrings with a `!value` token.
-
-  #### Example
-
-  ```
-  /// !value
-  ///
-  /// a constant representing the value 47.
-  pub const fortyseven = 47;
-  ```
-
-  ### Errors
-
-  errors appear inside special [error struct](https://ziglang.org/documentation/0.6.0/#Errors)
-  and should be documented at the per-value level:
-
-  #### Example
-
-  ```
-  /// docstring for this error struct (if desired)
-  pub const my_error = error {
-    /// docstring for ErrorEnum1
-    ErrorEnum1,
-
-    /// docstring for ErrorEnum2
-    ErrorEnum2
-  }
-  ```
-
-  ## Scope
-
-  This module will generate documentation from all Zig code that resides in the
-  same code directory as the base module (or overridden directory, if applicable).
-  Zig code in subdirectories will not be subjected to document generation.
+  > ### Warning {: .warning }
+  >
+  > Currently `Zig.Doc` is lazily written to support the use case for `beam.zig`
+  > found in the the main Zigler project.  It is very likely that custom zig files
+  > used in a nif might not be correctly parsed.  If you find this to be the case,
+  > please file an issue at: https://github.com/E-xyza/zig_doc/issues
   """
 
   alias Zig.Doc.Generator

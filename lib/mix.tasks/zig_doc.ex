@@ -6,22 +6,34 @@ defmodule Mix.Tasks.ZigDoc do
 
   @spec run([String.t()], keyword) :: :ok
   @moduledoc """
+  Runs `mix docs`, except with `Zig.Doc.generate_docs/3` as the callback.
+
+  This injects a processing step for zig documentation at the end of the mix
+  doc step, including specified zig files as "modules" in the ExDoc system.
+  These files are incorporated under the `ZIG CODE` module category.
+
+  This is most effectively used by aliasing it in your mix.exs:
+
+  ```elixir
+  def project do
+    [
+      ...
+      aliases: [
+        docs: ["zig_doc"]
+      ]
+      ...
+    ]
+  end
+  ```
 
   see `Mix.Tasks.Docs` for more information
   """
   def run(params, zig_doc_options \\ []) do
-    # TODO: make sure update works with lambdas
     config =
       Mix.Project.config()
       |> Keyword.update(:docs, zig_doc_options, &Keyword.merge(&1, zig_doc_options))
 
     Mix.Tasks.Docs.run(params, config, &Zig.Doc.generate_docs/3)
     :ok
-  end
-end
-
-defmodule Mix.Tasks.ZigDocDev do
-  def run(params) do
-    Mix.Tasks.ZigDoc.run(params, zig_doc: [])
   end
 end

@@ -1,4 +1,6 @@
 defmodule Zig.Doc.Sema do
+  @moduledoc false
+
   @type type :: atom
 
   @type decls :: %{
