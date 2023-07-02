@@ -23,7 +23,7 @@ defmodule Zig.Doc.Generator do
   defp line_for(%{position: %{line: line}}), do: line
   defp line_for(_), do: 1
 
-  defp trim_first_space(<<32, next, rest :: binary>>) when next != 32, do: <<next, rest :: binary>>
+  defp trim_first_space(<<32, next, rest::binary>>) when next != 32, do: <<next, rest::binary>>
   defp trim_first_space(line), do: line
 
   def modulenode_from_config({id, options}, sema_module) do
@@ -62,51 +62,65 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, sema) do
-    name = Keyword.fetch!(fn_parts, :name)
-    type = Keyword.fetch!(fn_parts, :type)
-    params = Keyword.fetch!(fn_parts, :params)
+    if should_ignore?(fun) do
+      acc
+    else
+      name = Keyword.fetch!(fn_parts, :name)
+      type = Keyword.fetch!(fn_parts, :type)
+      params = Keyword.fetch!(fn_parts, :params)
 
-    # find the function in the sema
-    specs =
-      sema.functions
-      |> Enum.find(&(&1.name == name))
-      |> Spec.function_from_sema()
-      |> List.wrap()
+      # find the function in the sema
+      specs =
+        sema.functions
+        |> Enum.find(&(&1.name == name))
+        |> Spec.function_from_sema()
+        |> List.wrap()
 
-    param_string =
-      params
-      |> Enum.map(fn {var, _, type} -> "#{var}: #{render_type(type)}" end)
-      |> Enum.join(", ")
+      param_string =
+        params
+        |> Enum.map(fn {var, _, type} -> "#{var}: #{render_type(type)}" end)
+        |> Enum.join(", ")
 
-    signature = "#{name}(#{param_string}) #{render_type(type)}"
+      signature = "#{name}(#{param_string}) #{render_type(type)}"
 
-    # TODO: needs source_path and source_url
-    node = %ExDoc.FunctionNode{
-      id: "#{name}",
-      name: name,
-      arity: length(params),
-      doc: doc_ast(fun, file_path),
-      signature: signature,
-      specs: specs,
-      group: :Functions
-    }
+      # TODO: needs source_path and source_url
+      node =
+        %ExDoc.FunctionNode{
+          id: "#{name}",
+          name: name,
+          arity: length(params),
+          doc: doc_ast(fun, file_path),
+          signature: signature,
+          specs: specs,
+          group: :Functions
+        }
+        |> dbg(limit: 25)
 
-    %{acc | docs: [node | acc.docs]}
+      %{acc | docs: [node | acc.docs]}
+    end
   end
 
-  defp obtain_content({:const, const = %{pub: true}, {name, _, assignment}}, acc, file_path, sema) do
+  defp obtain_content(
+         {:const, const = %{pub: true}, {name, _, _assignment}},
+         acc,
+         file_path,
+         sema
+       ) do
     # find the function in the sema
-
     cond do
+      should_ignore?(const) ->
+        acc
+
       this_func = Enum.find(sema.functions, &(&1.name == name)) ->
         specs =
           this_func
           |> Spec.function_from_sema()
           |> List.wrap()
 
-        param_string = this_func.params
-        |> Enum.map(&render_type/1)
-        |> Enum.join(", ")
+        param_string =
+          this_func.params
+          |> Enum.map(&render_type/1)
+          |> Enum.join(", ")
 
         signature = "#{name}(#{param_string}) #{render_type(this_func.return)}"
 
@@ -124,37 +138,22 @@ defmodule Zig.Doc.Generator do
         %{acc | docs: [node | acc.docs]}
 
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
-        {type, extras} =
-          case {this_type.def, assignment} do
-            {atom, _} when is_atom(atom) ->
-              {atom, nil}
-
-            {typedef, {form, _, block}} when form in ~w(struct enum union)a ->
-              md =
-                block
-                |> to_typedef
-                |> markdown_from_typedef()
-
-              {typedef.type, md}
-
-            {typedef, _} ->
-              {typedef.type, markdown_from_typedef(typedef)}
-          end
+        name = this_type.name
 
         node = %ExDoc.TypeNode{
-          type: type,
+          type: :type,
           id: "#{name}",
           name: name,
           signature: "#{name}",
-          doc: doc_ast(const, file_path, extras: extras),
-          spec: Spec.type_from_sema(this_type),
+          doc: doc_ast(const, file_path),
+          spec: Spec.type_from_sema(this_type)
         }
 
         %{acc | typespecs: [node | acc.typespecs]}
 
-      this_const = Enum.find(sema.consts, &(&1.name == name)) ->
+      this_const = Enum.find(sema.decls, &(&1.name == name)) ->
         signature = "#{name}: #{this_const.type}"
-        specs = {:"::", [], [{name, [], Elixir}, {this_const.type, [], Elixir}]}
+        spec = {:"::", [], [{name, [], Elixir}, {this_const.type, [], Elixir}]}
 
         ## TODO: needs source_path and source_url
         node = %ExDoc.FunctionNode{
@@ -163,7 +162,7 @@ defmodule Zig.Doc.Generator do
           arity: 0,
           doc: doc_ast(const, file_path),
           signature: signature,
-          specs: specs,
+          specs: [spec],
           group: :Constants
         }
 
@@ -176,24 +175,33 @@ defmodule Zig.Doc.Generator do
 
   defp obtain_content({:var, var = %{pub: true}, {name, _type, _}}, acc, file_path, sema) do
     # obtain type from semantic analysis
-    if this_var = Enum.find(sema.vars, &(&1.name == name)) do
-      signature = "#{name}: #{this_var.type}"
+    cond do
+      should_ignore?(var) ->
+        acc
 
-      specs = {:"::", [], [{name, [], Elixir}, {this_var.type, [], Elixir}]}
+      this_var = Enum.find(sema.decls, &(&1.name == name)) ->
+        signature = "#{name}: #{this_var.type}"
 
-      node = %ExDoc.FunctionNode{
-        id: "#{name}",
-        name: name,
-        arity: 0,
-        doc: doc_ast(var, file_path),
-        signature: signature,
-        specs: specs,
-        group: :Variables
-      }
+        specs = [{:"::", [], [{name, [], Elixir}, {this_var.type, [], Elixir}]}]
 
-      %{acc | docs: [node | acc.docs]}
-    else
-      acc
+        annotations =
+          Enum.flat_map(~w(threadlocal comptime)a, &List.wrap(if Map.get(var, &1), do: &1))
+
+        node = %ExDoc.FunctionNode{
+          id: "#{name}",
+          name: name,
+          arity: 0,
+          doc: doc_ast(var, file_path),
+          signature: signature,
+          specs: specs,
+          group: :Variables,
+          annotations: annotations
+        }
+
+        %{acc | docs: [node | acc.docs]}
+
+      true ->
+        acc
     end
   end
 
@@ -202,60 +210,6 @@ defmodule Zig.Doc.Generator do
   require EEx
   file = Path.join(__DIR__, "markdown_from_typedef.md.eex")
   EEx.function_from_file(:defp, :markdown_from_typedef, file, [:assigns])
-
-  defp to_typedef(block) do
-    %{functions: [], fields: [], consts: []}
-    |> fields_to_parts(Keyword.fetch!(block, :fields))
-    |> decls_to_parts(Keyword.fetch!(block, :decls))
-  end
-
-  defp fields_to_parts(contents, [{:doc_comment, comment}, {name, type} | rest]) do
-    fields_to_parts(%{contents | fields: [%{name: name, type: type, comment: comment}]}, rest)
-  end
-
-  defp fields_to_parts(contents, [{name, type} | rest]) do
-    fields_to_parts(%{contents | fields: [%{name: name, type: type}]}, rest)
-  end
-
-  defp fields_to_parts(contents, [{:fn, %{pub: true, doc_comment: comment}, fn_parts} | rest]) do
-    name = Keyword.fetch!(fn_parts, :name)
-    type = Keyword.fetch!(fn_parts, :type)
-
-    params =
-      fn_parts
-      |> Keyword.fetch!(:params)
-      |> Enum.map(fn {name, _, type} -> %{name: name, type: type} end)
-
-    fields_to_parts(
-      %{
-        contents
-        | functions: [
-            %{name: name, return: type, params: params, comment: comment} | contents.functions
-          ]
-      },
-      rest
-    )
-  end
-
-  defp fields_to_parts(contents, [_ | rest]), do: fields_to_parts(contents, rest)
-
-  defp fields_to_parts(contents, []), do: contents
-
-  defp decls_to_parts(contents, [
-         {:const, %{pub: true, doc_comment: comment}, {name, type, _}} | rest
-       ]) do
-    this_const = %{
-      name: name,
-      type: type,
-      comment: comment
-    }
-
-    decls_to_parts(%{contents | consts: [this_const | contents.consts]}, rest)
-  end
-
-  defp decls_to_parts(contents, [_ | rest]), do: decls_to_parts(contents, rest)
-
-  defp decls_to_parts(contents, []), do: contents
 
   defp render_type(type) when is_atom(type), do: to_string(type)
 
@@ -274,10 +228,13 @@ defmodule Zig.Doc.Generator do
         else
           "?#{render_type(type.child)}"
         end
+
       Zig.Type.Struct ->
         render_struct(type)
+
       Zig.Type.Slice ->
         type.repr
+
       Zig.Type.Error ->
         "!#{render_type(type.child)}"
     end
@@ -286,4 +243,23 @@ defmodule Zig.Doc.Generator do
   defp render_struct(%{name: "stub_erl_nif." <> what}), do: "e.#{what}"
   defp render_struct(%{name: "beam.term" <> _}), do: "beam.term"
   defp render_struct(%{name: name}), do: name
+
+  defp should_ignore?(item), do: "ignore" in options(item)
+
+  defp options(%{doc_comment: nil}), do: []
+
+  defp options(%{doc_comment: comment}) do
+    comment
+    |> String.trim()
+    |> case do
+      "<!--" <> rest ->
+        rest
+        |> String.split("-->")
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == ""))
+
+      _ ->
+        []
+    end
+  end
 end

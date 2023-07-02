@@ -28,8 +28,7 @@ defmodule Zig.Doc.Sema do
 
   @type file :: %{
           functions: [fun],
-          consts: [decls],
-          vars: [decls],
+          decls: [decls],
           types: [typedef]
         }
 
