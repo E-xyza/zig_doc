@@ -17,6 +17,8 @@ defmodule ZigDoc.MixProject do
           "Zigler" => "https://hexdocs.pm/zigler"
         }
       ],
+      docs: [main: "Zig.Doc"],
+      source_url: "https://github.com/E-xyza/zig_doc/",
       deps: deps()
     ]
   end
