@@ -11,7 +11,7 @@ defmodule ZigDoc.MixProject do
       package: [
         description: "Zig documentation library for zigler",
         licenses: ["MIT"],
-        files: ~w(lib mix.exs README* LICENSE* VERSIONS* priv),
+        files: ~w(lib mix.exs README* LICENSE*),
         links: %{
           "GitHub" => "https://github.com/E-xyza/zig_doc",
           "Zigler" => "https://hexdocs.pm/zigler"
