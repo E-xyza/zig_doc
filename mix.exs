@@ -8,6 +8,15 @@ defmodule ZigDoc.MixProject do
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
+      package: [
+        description: "Zig documentation library for zigler",
+        licenses: ["MIT"],
+        files: ~w(lib mix.exs README* LICENSE* VERSIONS* priv),
+        links: %{
+          "GitHub" => "https://github.com/E-xyza/zig_doc",
+          "Zigler" => "https://hexdocs.pm/zigler"
+        }
+      ],
       deps: deps()
     ]
   end
