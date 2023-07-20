@@ -245,6 +245,12 @@ defmodule Zig.Doc.Generator do
     "#{optional}[] #{const}#{render_type(params[:type])}"
   end
 
+  defp render_type({:optional_type, {:ref, parts}}) do
+    parts
+    |> Enum.map(&to_string/1)
+    |> Enum.join(".")
+  end
+
   defp render_type(type = %struct{}) do
     case struct do
       Zig.Type.Optional ->
