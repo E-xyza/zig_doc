@@ -89,19 +89,7 @@ defmodule Zig.Doc.Generator do
 
       signature = "#{name}(#{param_string}) #{render_type(type)}"
 
-      node = %ExDoc.FunctionNode{
-        id: "#{name}",
-        name: name,
-        arity: length(params),
-        doc: doc_ast(fun, file_path),
-        signature: signature,
-        specs: specs,
-        group: :Functions,
-        source_path: file_path,
-        source_url: source_url(file_path, fun.position.line, exdoc_config)
-      }
-
-      %{acc | docs: [node | acc.docs]}
+      function_content(acc, name, length(params), file_path, fun, signature, specs, exdoc_config)
     end
   end
 
@@ -131,19 +119,7 @@ defmodule Zig.Doc.Generator do
 
         signature = "#{name}(#{param_string}) #{render_type(this_func.return)}"
 
-        node = %ExDoc.FunctionNode{
-          id: "#{name}",
-          name: name,
-          arity: length(this_func.params),
-          doc: doc_ast(const, file_path),
-          signature: signature,
-          specs: specs,
-          group: :Functions,
-          source_path: file_path,
-          source_url: source_url(file_path, const.position.line, exdoc_config)
-        }
-
-        %{acc | docs: [node | acc.docs]}
+        function_content(acc, name, length(this_func.params), file_path, const, signature, specs, exdoc_config)
 
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
         name = this_type.name
@@ -232,6 +208,24 @@ defmodule Zig.Doc.Generator do
 
   defp obtain_content(_, acc, _, _, _), do: acc
 
+  defp function_content(module_node, name, arity, file_path, parameters, signature, specs, exdoc_config) do
+    group = function_group(parameters)
+
+    node = %ExDoc.FunctionNode{
+      id: "#{name}",
+      name: name,
+      arity: arity,
+      doc: doc_ast(parameters, parameters),
+      signature: signature,
+      specs: specs,
+      group: group,
+      source_path: file_path,
+      source_url: source_url(file_path, parameters.position.line, exdoc_config)
+    }
+
+    add_group(%{module_node | docs: [node | module_node.docs]}, group)
+  end
+
   require EEx
   file = Path.join(__DIR__, "markdown_from_typedef.md.eex")
   EEx.function_from_file(:defp, :markdown_from_typedef, file, [:assigns])
@@ -276,6 +270,32 @@ defmodule Zig.Doc.Generator do
   defp render_struct(%{name: name}), do: name
 
   defp should_ignore?(item), do: "ignore" in options(item)
+
+  defp function_group(item) do
+    topic = item
+    |> options
+    |> Enum.find_value(fn option ->
+      if String.starts_with?(option, "topic:") do
+        option
+        |> String.replace_leading("topic:", "")
+        |> String.trim
+      end
+    end)
+
+    if topic do
+      :"Functions (#{topic})"
+    else
+      :Functions
+    end
+  end
+
+  defp add_group(modulenode = %{docs_groups: groups}, group) do
+    if group in groups do
+      modulenode
+    else
+      %{modulenode | docs_groups: [group | groups]}
+    end
+  end
 
   defp options(%{doc_comment: nil}), do: []
 
