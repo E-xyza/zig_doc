@@ -68,28 +68,44 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, exdoc_config, sema) do
-    if should_ignore?(fun) do
-      acc
-    else
-      name = Keyword.fetch!(fn_parts, :name)
-      type = Keyword.fetch!(fn_parts, :type)
-      params = Keyword.fetch!(fn_parts, :params)
+    name = Keyword.fetch!(fn_parts, :name)
+    type = Keyword.fetch!(fn_parts, :type)
+    params = Keyword.fetch!(fn_parts, :params)
 
-      # find the function in the sema
-      specs =
-        sema.functions
-        |> Enum.find(&(&1.name == name))
-        |> Spec.function_from_sema()
-        |> List.wrap()
+    # find the function in the sema
+    sema = Enum.find(sema.functions, &(&1.name == name)) || raise "#{name} function not found"
 
-      param_string =
-        params
-        |> Enum.map(fn {var, _, type} -> "#{var}: #{render_type(type)}" end)
-        |> Enum.join(", ")
+    specs =
+      sema
+      |> Spec.function_from_sema()
+      |> List.wrap()
 
-      signature = "#{name}(#{param_string}) #{render_type(type)}"
+    param_string =
+      params
+      |> Enum.map(fn {var, _, type} -> "#{var}: #{render_type(type)}" end)
+      |> Enum.join(", ")
 
-      function_content(acc, name, length(params), file_path, fun, signature, specs, exdoc_config)
+    cond do
+      should_ignore?(fun) ->
+        acc
+
+      match?(%{return: :type}, sema) ->
+        signature = "#{name}(#{param_string})"
+        function_type(acc, name, length(params), file_path, fun, signature, sema, exdoc_config)
+
+      true ->
+        signature = "#{name}(#{param_string}) #{render_type(type)}"
+
+        function_content(
+          acc,
+          name,
+          length(params),
+          file_path,
+          fun,
+          signature,
+          specs,
+          exdoc_config
+        )
     end
   end
 
@@ -102,11 +118,33 @@ defmodule Zig.Doc.Generator do
        ) do
     # find the function in the sema
 
+    this_func =
+      Enum.find(sema.functions, &(&1.name == name))
+
     cond do
       should_ignore?(const) ->
         acc
 
-      this_func = Enum.find(sema.functions, &(&1.name == name)) ->
+      match?(%{return: :type}, this_func) ->
+        param_string =
+          this_func.params
+          |> Enum.map(&render_type/1)
+          |> Enum.join(", ")
+
+        signature = "#{name}(#{param_string})"
+
+        function_type(
+          acc,
+          name,
+          length(this_func.params),
+          file_path,
+          const,
+          signature,
+          this_func,
+          exdoc_config
+        )
+
+      this_func ->
         specs =
           this_func
           |> Spec.function_from_sema()
@@ -119,7 +157,16 @@ defmodule Zig.Doc.Generator do
 
         signature = "#{name}(#{param_string}) #{render_type(this_func.return)}"
 
-        function_content(acc, name, length(this_func.params), file_path, const, signature, specs, exdoc_config)
+        function_content(
+          acc,
+          name,
+          length(this_func.params),
+          file_path,
+          const,
+          signature,
+          specs,
+          exdoc_config
+        )
 
       this_type = Enum.find(sema.types, &(&1.name == name)) ->
         name = this_type.name
@@ -208,7 +255,16 @@ defmodule Zig.Doc.Generator do
 
   defp obtain_content(_, acc, _, _, _), do: acc
 
-  defp function_content(module_node, name, arity, file_path, parameters, signature, specs, exdoc_config) do
+  defp function_content(
+         module_node,
+         name,
+         arity,
+         file_path,
+         parameters,
+         signature,
+         specs,
+         exdoc_config
+       ) do
     group = function_group(parameters)
 
     node = %ExDoc.FunctionNode{
@@ -224,6 +280,22 @@ defmodule Zig.Doc.Generator do
     }
 
     add_group(%{module_node | docs: [node | module_node.docs]}, group)
+  end
+
+  defp function_type(acc, name, arity, file_path, parameters, signature, sema, exdoc_config) do
+    node = %ExDoc.TypeNode{
+      type: :type,
+      id: "#{name}",
+      name: name,
+      signature: signature,
+      doc: doc_ast(parameters, file_path),
+      arity: arity,
+      spec: Spec.typefun_from_sema(sema),
+      source_path: file_path,
+      source_url: source_url(file_path, parameters.position.line, exdoc_config)
+    }
+
+    %{acc | typespecs: [node | acc.typespecs]}
   end
 
   require EEx
@@ -272,15 +344,16 @@ defmodule Zig.Doc.Generator do
   defp should_ignore?(item), do: "ignore" in options(item)
 
   defp function_group(item) do
-    topic = item
-    |> options
-    |> Enum.find_value(fn option ->
-      if String.starts_with?(option, "topic:") do
-        option
-        |> String.replace_leading("topic:", "")
-        |> String.trim
-      end
-    end)
+    topic =
+      item
+      |> options
+      |> Enum.find_value(fn option ->
+        if String.starts_with?(option, "topic:") do
+          option
+          |> String.replace_leading("topic:", "")
+          |> String.trim()
+        end
+      end)
 
     if topic do
       :"Functions (#{topic})"
@@ -369,10 +442,14 @@ defmodule Zig.Doc.Generator do
   defp process_consts(acc, decls) do
     %{
       acc
-      | consts: Enum.flat_map(decls, fn
-        {:const, %{pub: true, doc_comment: comment}, {name, type, _}} -> [%{name: name, type: type, comment: comment}]
-        _ -> []
-      end)
+      | consts:
+          Enum.flat_map(decls, fn
+            {:const, %{pub: true, doc_comment: comment}, {name, type, _}} ->
+              [%{name: name, type: type, comment: comment}]
+
+            _ ->
+              []
+          end)
     }
   end
 end

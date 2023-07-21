@@ -5,15 +5,19 @@ defmodule Zig.Doc.Spec do
   @spec function_from_sema(Sema.fun()) :: Macro.t()
 
   def function_from_sema(fun) do
-    name = fun.name
     return_type = {render_type(fun.return), [], Elixir}
     params = Enum.map(fun.params, fn type -> {render_type(type), [], Elixir} end)
 
-    {:"::", [], [{name, [], params}, return_type]}
+    {:"::", [], [{fun.name, [], params}, return_type]}
   end
 
   def type_from_sema(%{name: name, type: type}) do
     {:"::", [], [{name, [], Elixir}, render_typedef(type)]}
+  end
+
+  def typefun_from_sema(fun) do
+    params = Enum.map(fun.params, fn type -> {render_type(type), [], Elixir} end)
+    {fun.name, [], params}
   end
 
   defp render_type(type) when is_atom(type), do: type
