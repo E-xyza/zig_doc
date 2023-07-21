@@ -53,6 +53,9 @@ defmodule Zig.Doc do
     `pub const <type> = <expression that is a type>;` is recognized and
     converted into ExDoc-style type documentation.
 
+    functions which return `type` are also recognized and converted into type
+    documentation.
+
   - **constants**
 
     `pub const <identifier> = <expression that is a constant>;` is recognized
@@ -63,6 +66,24 @@ defmodule Zig.Doc do
 
     `pub var <identifier> = ...;` is recognized and converted into ExDoc-style
     function documentation under the category `Variables`.
+
+  ## Tags
+
+  preamble documentation comments like so
+
+  ```zig
+  \\\\\\ \<!-- \<tag0\>; \<tag1\>;...;\<tagn\> \--\>
+  ```
+
+  to tag the content.  Currently available tags:
+
+  - `ignore`: ignores the content.
+  - `topic: <topic>`: (non-type functions only) sets the topic of the content.  This
+    will be used to group functions in the ExDoc output, the function group
+    will be rendered as `Functions (<topic>)`.
+  - `args: <arg0>,<arg1>,...,<argn>` (const functions only) sets argument names when
+    the function is rendered as a constant.  Use _ to signify that the name should
+    not be used.
 
   > ### Warning {: .warning }
   >

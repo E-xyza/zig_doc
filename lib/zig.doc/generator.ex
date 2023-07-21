@@ -48,11 +48,9 @@ defmodule Zig.Doc.Generator do
         source_url: source_url(file_path, 1, exdoc_config)
       }
 
-      Enum.reduce(
-        parsed_document.code,
-        node,
-        &obtain_content(&1, &2, file_path, exdoc_config, sema)
-      )
+      parsed_document.code
+      |> Enum.reduce(node, &obtain_content(&1, &2, file_path, exdoc_config, sema))
+      |> canonical_ordering
     else
       :error ->
         Mix.raise(
@@ -65,6 +63,10 @@ defmodule Zig.Doc.Generator do
       {{:error, _reason}, :sema, path} ->
         Mix.raise("zig doc error: sema failed for `#{path}`")
     end
+  end
+
+  defp canonical_ordering(modulenode = %{docs: docs, typespecs: typespecs}) do
+    %{modulenode | docs: Enum.sort_by(docs, &(&1.name)), typespecs: Enum.sort_by(typespecs, &(&1.name))}
   end
 
   defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, exdoc_config, sema) do
@@ -128,8 +130,11 @@ defmodule Zig.Doc.Generator do
       match?(%{return: :type}, this_func) ->
         param_string =
           this_func.params
-          |> Enum.map(&render_type/1)
-          |> Enum.join(", ")
+          |> fill_names(const)
+          |> Enum.map_join(", ", fn
+            {type, "_"} -> render_type(type)
+            {type, name} -> "#{name}: #{render_type(type)}"
+          end)
 
         signature = "#{name}(#{param_string})"
 
@@ -152,8 +157,11 @@ defmodule Zig.Doc.Generator do
 
         param_string =
           this_func.params
-          |> Enum.map(&render_type/1)
-          |> Enum.join(", ")
+          |> fill_names(const)
+          |> Enum.map_join(", ", fn
+            {type, "_"} -> render_type(type)
+            {type, name} -> "#{name}: #{render_type(type)}"
+          end)
 
         signature = "#{name}(#{param_string}) #{render_type(this_func.return)}"
 
@@ -343,6 +351,30 @@ defmodule Zig.Doc.Generator do
 
   defp should_ignore?(item), do: "ignore" in options(item)
 
+  defp argument_names(item) do
+    item
+    |> options
+    |> Enum.find_value(fn option ->
+      if String.starts_with?(option, "args:") do
+        option
+        |> String.replace_leading("args:", "")
+        |> String.split(",")
+        |> Enum.map(&String.trim/1)
+      end
+    end)
+    |> List.wrap
+  end
+
+  defp fill_names(types, const = %{}) do
+    fill_names(types, argument_names(const), [])
+  end
+
+  defp fill_names([type | type_rest], [name | name_rest], so_far), do: fill_names(type_rest, name_rest, [{type, name} | so_far])
+
+  defp fill_names([type | type_rest], [], so_far), do: fill_names(type_rest, [], [{type, "_"} | so_far])
+
+  defp fill_names([], [], so_far), do: Enum.reverse(so_far)
+
   defp function_group(item) do
     topic =
       item
@@ -379,6 +411,8 @@ defmodule Zig.Doc.Generator do
       "<!--" <> rest ->
         rest
         |> String.split("-->")
+        |> List.first
+        |> String.split(";")
         |> Enum.map(&String.trim/1)
         |> Enum.reject(&(&1 == ""))
 
