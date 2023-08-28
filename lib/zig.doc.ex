@@ -45,7 +45,7 @@ defmodule Zig.Doc do
   - **functions**
 
     Public functions: `pub const <identifier> = <value that is a function>;`
-    and publically declared functions: `pub fn <identifier>(<arguments>) <type> { <block> }`
+    and publicly declared functions: `pub fn <identifier>(<arguments>) <type> { <block> }`
     are both recognized and converted to ExDoc-style function documentation.
 
   - **types**
