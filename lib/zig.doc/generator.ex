@@ -1,6 +1,12 @@
 defmodule Zig.Doc.Generator do
   alias ExDoc.DocAST
   alias Zig.Doc.Spec
+
+  alias Zig.Parser.Const
+  alias Zig.Parser.Function
+  alias Zig.Parser.ParamDecl
+  alias Zig.Parser.Struct
+  alias Zig.Parser.Var
   @moduledoc false
 
   def doc_ast(content, file_path, opts \\ []) do
@@ -69,11 +75,8 @@ defmodule Zig.Doc.Generator do
     %{modulenode | docs: Enum.sort_by(docs, &(&1.name)), typespecs: Enum.sort_by(typespecs, &(&1.name))}
   end
 
-  defp obtain_content({:fn, fun = %{pub: true}, fn_parts}, acc, file_path, exdoc_config, sema) do
-    name = Keyword.fetch!(fn_parts, :name)
-    type = Keyword.fetch!(fn_parts, :type)
-    params = Keyword.fetch!(fn_parts, :params)
-
+  defp obtain_content(%Function{pub: true, name: name, type: type, params: params} = fun, acc, file_path, exdoc_config, sema) do
+ 
     # find the function in the sema
     sema = Enum.find(sema.functions, &(&1.name == name)) || raise "#{name} function not found"
 
@@ -84,7 +87,7 @@ defmodule Zig.Doc.Generator do
 
     param_string =
       params
-      |> Enum.map(fn {var, _, type} -> "#{var}: #{render_type(type)}" end)
+      |> Enum.map(fn %ParamDecl{name: var, type: type} -> "#{var}: #{render_type(type)}" end)
       |> Enum.join(", ")
 
     cond do
@@ -112,7 +115,7 @@ defmodule Zig.Doc.Generator do
   end
 
   defp obtain_content(
-         {:const, const = %{pub: true}, {name, _, assignment}},
+         %Const{name: name, pub: true, value: assignment} = const,
          acc,
          file_path,
          exdoc_config,
@@ -192,7 +195,7 @@ defmodule Zig.Doc.Generator do
           doc: doc_ast(const, file_path, extras: extras),
           spec: Spec.type_from_sema(this_type),
           source_path: file_path,
-          source_url: source_url(file_path, const.position.line, exdoc_config)
+          source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
         }
 
         %{acc | typespecs: [node | acc.typespecs]}
@@ -211,7 +214,7 @@ defmodule Zig.Doc.Generator do
           specs: [spec],
           group: :Constants,
           source_path: file_path,
-          source_url: source_url(file_path, const.position.line, exdoc_config)
+          source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
         }
 
         %{acc | docs: [node | acc.docs]}
@@ -221,8 +224,7 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content(
-         {:var, var = %{pub: true}, {name, _type, _}},
+  defp obtain_content(%Var{pub: true, name: name} = var,
          acc,
          file_path,
          exdoc_config,
@@ -251,7 +253,7 @@ defmodule Zig.Doc.Generator do
           group: :Variables,
           annotations: annotations,
           source_path: file_path,
-          source_url: source_url(file_path, var.position.line, exdoc_config)
+          source_url: source_url(file_path, elem(var.location, 0), exdoc_config)
         }
 
         %{acc | docs: [node | acc.docs]}
@@ -284,7 +286,7 @@ defmodule Zig.Doc.Generator do
       specs: specs,
       group: group,
       source_path: file_path,
-      source_url: source_url(file_path, parameters.position.line, exdoc_config)
+      source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
 
     add_group(%{module_node | docs: [node | module_node.docs]}, group)
@@ -428,62 +430,31 @@ defmodule Zig.Doc.Generator do
   end
 
   @empty_extras %{fields: [], consts: [], functions: []}
-  defp process_body({:struct, _, opts}) do
+  defp process_body(%Struct{fields: fields, decls: decls}) do
     @empty_extras
-    |> process_fields(Keyword.get(opts, :fields, []))
-    |> process_consts(Keyword.get(opts, :decls, []))
+    |> process_fields(fields)
+    |> process_decls(decls)
   end
 
   defp process_body(_), do: @empty_extras
 
-  defp process_fields(acc, [{:doc_comment, comment}, {field, type} | rest]) do
-    process_fields(
-      %{acc | fields: [%{name: field, type: type, comment: comment} | acc.fields]},
-      rest
-    )
+  defp process_fields(acc, fields) do
+    Enum.reduce(fields, acc, fn field, acc -> 
+      %{acc | fields: [%{name: field.name, type: field.type, comment: field.doc_comment} | acc.fields]}
+    end)
   end
 
-  defp process_fields(acc, [{field, type} | rest]) do
-    process_fields(
-      %{acc | fields: [%{name: field, type: type, comment: nil} | acc.fields]},
-      rest
-    )
+  def process_decls(acc, decls) do
+    Enum.reduce(decls, acc, &process_decl(&2, &1))
   end
 
-  defp process_fields(acc, [{:fn, %{pub: true, doc_comment: comment}, opts} | rest]) do
-    params =
-      opts
-      |> Keyword.fetch!(:params)
-      |> Enum.map(fn {name, _, type} -> %{name: name, type: type} end)
-
-    fun = %{
-      params: params,
-      name: Keyword.fetch!(opts, :name),
-      return: Keyword.fetch!(opts, :type),
-      comment: comment
-    }
-
-    process_fields(
-      %{acc | functions: [fun | acc.functions]},
-      rest
-    )
+  defp process_decl(acc, %Function{params: params, doc_comment: comment, name: name, type: type, pub: true}) do
+    %{acc | functions: [%{params: params, name: name, return: type, comment: comment} | acc.functions]}
   end
 
-  defp process_fields(acc, [_ | rest]), do: process_fields(acc, rest)
-
-  defp process_fields(acc, []), do: acc
-
-  defp process_consts(acc, decls) do
-    %{
-      acc
-      | consts:
-          Enum.flat_map(decls, fn
-            {:const, %{pub: true, doc_comment: comment}, {name, type, _}} ->
-              [%{name: name, type: type, comment: comment}]
-
-            _ ->
-              []
-          end)
-    }
+  defp process_decl(acc, %Const{name: name, type: type, doc_comment: comment, pub: true}) do
+    %{acc | consts: [%{name: name, type: type, comment: comment} | acc.consts]}
   end
+
+  defp process_decl(acc, _), do: acc
 end
