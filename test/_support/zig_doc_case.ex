@@ -15,13 +15,18 @@ defmodule Zig.Doc.Case do
 
   def get_module(file) do
     [module] =
-      Zig.Doc.add_zig_doc_config([], @default_exdoc_config, [module: [file: file]], Zig.SemaMock)
+      Zig.Doc.add_zig_doc_config(
+        {[], []},
+        @default_exdoc_config,
+        [module: [file: file]],
+        Zig.SemaMock
+      )
 
     module
   end
 
   def expect_sema(sema) do
-    Mox.expect(Zig.SemaMock, :run_sema, fn _ -> sema end)
+    Mox.expect(Zig.SemaMock, :run_sema, fn _, _, _ -> sema end)
   end
 
   defmacro assert_code(string, data) do

@@ -33,11 +33,19 @@ defmodule Zig.Doc.Generator do
   defp trim_first_space(<<32, next, rest::binary>>) when next != 32, do: <<next, rest::binary>>
   defp trim_first_space(line), do: line
 
+  defp context do
+    case :code.priv_dir(:zigler) do
+      {:error, :bad_name} -> ""
+      path -> Path.join(path, "beam/sema_doc.zig")
+    end
+  end
+
   def modulenode_from_config({id, options}, exdoc_config, sema_module) do
     # options must include 'file' key
     with {:ok, file_path} <- Keyword.fetch(options, :file),
          {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path},
-         {{:ok, sema}, :sema, _} <- {sema_module.run_sema(file_path), :sema, file_path} do
+         {{:ok, sema}, :sema, _} <-
+           {sema_module.run_sema(file_path, nil, sema_context: context()), :sema, file_path} do
       parsed_document = Zig.Parser.parse(file)
 
       node = %ExDoc.ModuleNode{
@@ -72,11 +80,20 @@ defmodule Zig.Doc.Generator do
   end
 
   defp canonical_ordering(modulenode = %{docs: docs, typespecs: typespecs}) do
-    %{modulenode | docs: Enum.sort_by(docs, &(&1.name)), typespecs: Enum.sort_by(typespecs, &(&1.name))}
+    %{
+      modulenode
+      | docs: Enum.sort_by(docs, & &1.name),
+        typespecs: Enum.sort_by(typespecs, & &1.name)
+    }
   end
 
-  defp obtain_content(%Function{pub: true, name: name, type: type, params: params} = fun, acc, file_path, exdoc_config, sema) do
- 
+  defp obtain_content(
+         %Function{pub: true, name: name, type: type, params: params} = fun,
+         acc,
+         file_path,
+         exdoc_config,
+         sema
+       ) do
     # find the function in the sema
     sema = Enum.find(sema.functions, &(&1.name == name)) || raise "#{name} function not found"
 
@@ -224,7 +241,8 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp obtain_content(%Var{pub: true, name: name} = var,
+  defp obtain_content(
+         %Var{pub: true, name: name} = var,
          acc,
          file_path,
          exdoc_config,
@@ -302,7 +320,7 @@ defmodule Zig.Doc.Generator do
       arity: arity,
       spec: Spec.typefun_from_sema(sema),
       source_path: file_path,
-      source_url: source_url(file_path, parameters.position.line, exdoc_config)
+      source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
 
     %{acc | typespecs: [node | acc.typespecs]}
@@ -321,29 +339,32 @@ defmodule Zig.Doc.Generator do
     "#{optional}[] #{const}#{render_type(params[:type])}"
   end
 
-  defp render_type({:optional_type, {:ref, parts}}) do
+  defp render_type({:optional, %{type: {:ref, parts}}}) do
     parts
     |> Enum.map(&to_string/1)
     |> Enum.join(".")
   end
 
   defp render_type(type = %struct{}) do
-    case struct do
-      Zig.Type.Optional ->
+    case type do
+      _ when struct == Zig.Type.Optional ->
         if match?(%{name: "stub_erl_nif.ErlNifEnv"}, type.child) do
           "beam.env"
         else
           "?#{render_type(type.child)}"
         end
 
-      Zig.Type.Struct ->
+      _ when struct == Zig.Type.Struct ->
         render_struct(type)
 
-      Zig.Type.Slice ->
+      _ when struct == Zig.Type.Slice ->
         type.repr
 
-      Zig.Type.Error ->
+      _ when struct == Zig.Type.Error ->
         "!#{render_type(type.child)}"
+
+      %Zig.Parser.Pointer{count: :slice} ->
+        "[]#{render_type(type.type)}"
     end
   end
 
@@ -364,16 +385,18 @@ defmodule Zig.Doc.Generator do
         |> Enum.map(&String.trim/1)
       end
     end)
-    |> List.wrap
+    |> List.wrap()
   end
 
   defp fill_names(types, const = %{}) do
     fill_names(types, argument_names(const), [])
   end
 
-  defp fill_names([type | type_rest], [name | name_rest], so_far), do: fill_names(type_rest, name_rest, [{type, name} | so_far])
+  defp fill_names([type | type_rest], [name | name_rest], so_far),
+    do: fill_names(type_rest, name_rest, [{type, name} | so_far])
 
-  defp fill_names([type | type_rest], [], so_far), do: fill_names(type_rest, [], [{type, "_"} | so_far])
+  defp fill_names([type | type_rest], [], so_far),
+    do: fill_names(type_rest, [], [{type, "_"} | so_far])
 
   defp fill_names([], [], so_far), do: Enum.reverse(so_far)
 
@@ -413,7 +436,7 @@ defmodule Zig.Doc.Generator do
       "<!--" <> rest ->
         rest
         |> String.split("-->")
-        |> List.first
+        |> List.first()
         |> String.split(";")
         |> Enum.map(&String.trim/1)
         |> Enum.reject(&(&1 == ""))
@@ -439,8 +462,11 @@ defmodule Zig.Doc.Generator do
   defp process_body(_), do: @empty_extras
 
   defp process_fields(acc, fields) do
-    Enum.reduce(fields, acc, fn field, acc -> 
-      %{acc | fields: [%{name: field.name, type: field.type, comment: field.doc_comment} | acc.fields]}
+    Enum.reduce(fields, acc, fn field, acc ->
+      %{
+        acc
+        | fields: [%{name: field.name, type: field.type, comment: field.doc_comment} | acc.fields]
+      }
     end)
   end
 
@@ -448,8 +474,17 @@ defmodule Zig.Doc.Generator do
     Enum.reduce(decls, acc, &process_decl(&2, &1))
   end
 
-  defp process_decl(acc, %Function{params: params, doc_comment: comment, name: name, type: type, pub: true}) do
-    %{acc | functions: [%{params: params, name: name, return: type, comment: comment} | acc.functions]}
+  defp process_decl(acc, %Function{
+         params: params,
+         doc_comment: comment,
+         name: name,
+         type: type,
+         pub: true
+       }) do
+    %{
+      acc
+      | functions: [%{params: params, name: name, return: type, comment: comment} | acc.functions]
+    }
   end
 
   defp process_decl(acc, %Const{name: name, type: type, doc_comment: comment, pub: true}) do
