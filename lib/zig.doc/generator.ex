@@ -33,24 +33,16 @@ defmodule Zig.Doc.Generator do
   defp trim_first_space(<<32, next, rest::binary>>) when next != 32, do: <<next, rest::binary>>
   defp trim_first_space(line), do: line
 
-  defp context do
-    case :code.priv_dir(:zigler) do
-      {:error, :bad_name} -> ""
-      path -> Path.join(path, "beam/sema_doc.zig")
-    end
-  end
-
   def modulenode_from_config({id, options}, exdoc_config, sema_module) do
     # options must include 'file' key
     with {:ok, file_path} <- Keyword.fetch(options, :file),
-         {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path},
-         {{:ok, sema}, :sema, _} <-
-           {sema_module.run_sema(file_path, nil, sema_context: context()), :sema, file_path} do
+         {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path} do
+      sema = sema_module.run_sema_doc(file_path)
       parsed_document = Zig.Parser.parse(file)
 
       node = %ExDoc.ModuleNode{
         id: "#{id}",
-        doc_line: 1,
+        # doc_line: 1,
         doc: doc_ast(parsed_document, file_path),
         language: ExDoc.Language.Elixir,
         title: "beam",
@@ -58,7 +50,7 @@ defmodule Zig.Doc.Generator do
         module: :beam,
         docs_groups: [:Functions, :Types, :Constants, :Variables],
         type: :module,
-        source_path: file_path,
+        # source_path: file_path,
         source_url: source_url(file_path, 1, exdoc_config)
       }
 
@@ -71,11 +63,8 @@ defmodule Zig.Doc.Generator do
           "zig doc config error: configuration for module #{id} requires a `:file` option"
         )
 
-      {{:error, reason}, :read, path} ->
+      {{:error, reason}, path} ->
         Mix.raise("zig doc error: failure reading file at `#{path}` (#{reason})")
-
-      {{:error, _reason}, :sema, path} ->
-        Mix.raise("zig doc error: sema failed for `#{path}`")
     end
   end
 
@@ -211,7 +200,7 @@ defmodule Zig.Doc.Generator do
           signature: "#{name}",
           doc: doc_ast(const, file_path, extras: extras),
           spec: Spec.type_from_sema(this_type),
-          source_path: file_path,
+          # source_path: file_path,
           source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
         }
 
@@ -230,7 +219,7 @@ defmodule Zig.Doc.Generator do
           signature: signature,
           specs: [spec],
           group: :Constants,
-          source_path: file_path,
+          # source_path: file_path,
           source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
         }
 
@@ -270,7 +259,7 @@ defmodule Zig.Doc.Generator do
           specs: specs,
           group: :Variables,
           annotations: annotations,
-          source_path: file_path,
+          # source_path: file_path,
           source_url: source_url(file_path, elem(var.location, 0), exdoc_config)
         }
 
@@ -303,7 +292,7 @@ defmodule Zig.Doc.Generator do
       signature: signature,
       specs: specs,
       group: group,
-      source_path: file_path,
+      # source_path: file_path,
       source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
 
@@ -319,7 +308,7 @@ defmodule Zig.Doc.Generator do
       doc: doc_ast(parameters, file_path),
       arity: arity,
       spec: Spec.typefun_from_sema(sema),
-      source_path: file_path,
+      # source_path: file_path,
       source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
 
@@ -329,6 +318,10 @@ defmodule Zig.Doc.Generator do
   require EEx
   file = Path.join(__DIR__, "markdown_from_typedef.md.eex")
   EEx.function_from_file(:defp, :markdown_from_typedef, file, [:assigns])
+
+  defp tts(atom) when is_atom(atom), do: atom
+
+  defp tts({:ref, list}), do: Enum.join(list, ".")
 
   defp render_type(type) when is_atom(type), do: to_string(type)
 
@@ -365,7 +358,19 @@ defmodule Zig.Doc.Generator do
 
       %Zig.Parser.Pointer{count: :slice} ->
         "[]#{render_type(type.type)}"
+
+      %{optional: true} when struct == Zig.Type.Pointer ->
+        "?*#{render_type(type.child)}"
+
+      %{optional: false} when struct == Zig.Type.Pointer ->
+        "*#{render_type(type.child)}"
     end
+  end
+
+  defp render_type({:call, :TypeOf, params}), do: render_type({:call, "@TypeOf", params})
+
+  defp render_type({:call, fun, params}) do
+    "#{fun}(#{Enum.map_join(params, ", ", &render_type/1)})"
   end
 
   defp render_struct(%{name: "stub_erl_nif." <> what}), do: "e.#{what}"

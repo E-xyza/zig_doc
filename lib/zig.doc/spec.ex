@@ -42,6 +42,15 @@ defmodule Zig.Doc.Spec do
 
       Zig.Type.Enum ->
         String.to_atom(type.name)
+
+      Zig.Type.Pointer when type.optional ->
+        :"?*#{render_type(type.child)}"
+
+      Zig.Type.Pointer ->
+        :"*#{render_type(type.child)}"
+
+      Zig.Type.Bool ->
+        :bool
     end
   end
 
@@ -71,6 +80,9 @@ defmodule Zig.Doc.Spec do
         type.tags
         |> Enum.map(fn {tag, _} -> wrap(:".#{tag}") end)
         |> Enum.reduce(&{:|, [], [&1, &2]})
+
+      {Zig.Type.Pointer, %{child: child}} ->
+        wrap(:"*#{render_type(child)}")
 
       _ ->
         :unknown

@@ -1,7 +1,7 @@
 <%= unless @fields == [] do %>
 ### fields
 <%= for field <- @fields do %>
-- `<%= field.name %>`: `<%= field.type %>`
+- `<%= field.name %>`: `<%= tts(field.type) %>`
   <%= if comment = Map.get(field, :comment), do: comment %>
 <% end %>
 <% end %>
@@ -9,7 +9,7 @@
 <%= unless @consts == [] do %>
 ### consts
 <%= for const <- @consts do %>
-- `<%= const.name %>`: `<%= const.type %>`
+- `<%= const.name %>`: `<%= tts(const.type) %>`
   <%= if comment = Map.get(const, :comment), do: comment %>
 <% end %>
 <% end %>
@@ -21,7 +21,7 @@
 <% 
   arg_types = function.params 
   |> Enum.map(fn 
-    %{name: name, type: type} -> "#{name}: #{type}"
+    %{name: name, type: type} -> "#{name}: #{tts(type)}"
     type -> to_string(type)
   end) 
   |> Enum.join(", ") 
