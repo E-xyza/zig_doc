@@ -4,7 +4,7 @@ defmodule ZigDocTest.Documentation.VarTest do
   alias Zig.Doc.Sema
 
   test "var documentation is generated" do
-    expect_sema({:ok, Sema.new(decls: [%{name: :foo, type: :i32}])})
+    expect_sema(Sema.new(decls: [%{name: :foo, type: :i32}]))
 
     assert %{docs: [function]} = get_module("test/_sources/var.zig")
 

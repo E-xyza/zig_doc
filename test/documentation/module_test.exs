@@ -4,7 +4,7 @@ defmodule ZigDocTest.Documentation.ModuleTest do
   alias Zig.Doc.Sema
 
   test "module-level documentation is generated" do
-    expect_sema({:ok, Sema.new()})
+    expect_sema(Sema.new())
 
     assert %{doc: [{:p, [], ["tests module-level comment content"], %{}}]} =
              get_module("test/_sources/module.zig")

@@ -20,6 +20,9 @@ defmodule Zig.Doc.Spec do
     {fun.name, [], params}
   end
 
+  defp render_type(:erl_nif_binary), do: :"e.ErlNifBinary"
+  defp render_type(:stacktrace), do: :"std.builtin.StackTrace" 
+
   defp render_type(type) when is_atom(type), do: type
 
   defp render_type(type = %struct{}) do
@@ -60,6 +63,8 @@ defmodule Zig.Doc.Spec do
 
   defp wrap(name), do: {name, [], Elixir}
 
+  defp render_typedef(:erl_nif_binary), do: wrap(:"e.ErlNifBinary")
+  defp render_typedef(:stacktrace), do: wrap(:"std.builtin.StackTrace")
   defp render_typedef(type) when is_atom(type), do: wrap(type)
 
   defp render_typedef(type = %struct{}) do

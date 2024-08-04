@@ -26,7 +26,7 @@ defmodule Zig.Doc.Case do
   end
 
   def expect_sema(sema) do
-    Mox.expect(Zig.SemaMock, :run_sema, fn _, _, _ -> sema end)
+    Mox.expect(Zig.SemaMock, :run_sema, fn _ -> sema end)
   end
 
   defmacro assert_code(string, data) do

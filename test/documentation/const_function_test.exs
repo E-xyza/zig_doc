@@ -4,7 +4,7 @@ defmodule ZigDocTest.Documentation.ConstFunctionTest do
   alias Zig.Doc.Sema
 
   test "documentation is generated for consts that are functions" do
-    expect_sema({:ok, Sema.new(functions: [%{name: :bar, return: :i32, params: [:i32]}])})
+    expect_sema(Sema.new(functions: [%{name: :bar, return: :i32, params: [:i32]}]))
 
     assert %{docs: [function]} = get_module("test/_sources/const_function.zig")
 

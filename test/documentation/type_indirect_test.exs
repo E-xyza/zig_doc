@@ -11,7 +11,7 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
       required: %{}
     }
 
-    expect_sema({:ok, Sema.new(types: [%{name: :foo, type: type}])})
+    expect_sema(Sema.new(types: [%{name: :foo, type: type}]))
 
     assert %{typespecs: [type]} = get_module("test/_sources/type_indirect.zig")
 

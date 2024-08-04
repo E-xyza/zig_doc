@@ -9,7 +9,7 @@ defmodule Zig.Doc.Generator do
   alias Zig.Parser.Var
   @moduledoc false
 
-  def doc_ast(content, file_path, opts \\ []) do
+  defp doc_ast(content, file_path, opts \\ []) do
     if document = content.doc_comment do
       # trim each line of the documentation.  This is necessary because sometimes
       # early whitespaces are inserted into the documentation, and this causes the
@@ -37,12 +37,11 @@ defmodule Zig.Doc.Generator do
     # options must include 'file' key
     with {:ok, file_path} <- Keyword.fetch(options, :file),
          {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path} do
-      sema = sema_module.run_sema_doc(file_path)
+      sema = sema_module.run_sema(file_path)
       parsed_document = Zig.Parser.parse(file)
 
       node = %ExDoc.ModuleNode{
         id: "#{id}",
-        # doc_line: 1,
         doc: doc_ast(parsed_document, file_path),
         language: ExDoc.Language.Elixir,
         title: "beam",
@@ -50,7 +49,6 @@ defmodule Zig.Doc.Generator do
         module: :beam,
         docs_groups: [:Functions, :Types, :Constants, :Variables],
         type: :module,
-        # source_path: file_path,
         source_url: source_url(file_path, 1, exdoc_config)
       }
 
@@ -200,9 +198,9 @@ defmodule Zig.Doc.Generator do
           signature: "#{name}",
           doc: doc_ast(const, file_path, extras: extras),
           spec: Spec.type_from_sema(this_type),
-          # source_path: file_path,
-          source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
-        }
+          source_url: source_url(file_path, elem(const.location, 0), exdoc_config),
+          group: :Types
+        } 
 
         %{acc | typespecs: [node | acc.typespecs]}
 
@@ -323,6 +321,8 @@ defmodule Zig.Doc.Generator do
 
   defp tts({:ref, list}), do: Enum.join(list, ".")
 
+  defp render_type(:erl_nif_binary), do: "e.ErlNifBinary"
+  defp render_type(:stacktrace), do: "std.builtin.StackTrace"
   defp render_type(type) when is_atom(type), do: to_string(type)
 
   defp render_type({:slice, opts, params}) do
