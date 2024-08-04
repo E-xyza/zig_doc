@@ -37,7 +37,7 @@ defmodule Zig.Doc.Generator do
     # options must include 'file' key
     with {:ok, file_path} <- Keyword.fetch(options, :file),
          {{:ok, file}, :read, _} <- {File.read(file_path), :read, file_path} do
-      sema = sema_module.run_sema(file_path)
+      sema = sema_module.run_sema_doc(file_path)
       parsed_document = Zig.Parser.parse(file)
 
       node = %ExDoc.ModuleNode{
