@@ -33,6 +33,8 @@ defmodule Mix.Tasks.ZigDoc do
       Mix.Project.config()
       |> Keyword.update(:docs, zig_doc_options, &Keyword.merge(&1, zig_doc_options))
 
+    Makeup.Lexers.ElixirLexer.register_sigil_lexer("Z", MakeupSyntect.Lexer, [language: "zig"])
+
     Mix.Tasks.Docs.run(params, config, &Zig.Doc.generate_docs/3)
     :ok
   end
