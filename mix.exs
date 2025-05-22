@@ -4,7 +4,7 @@ defmodule ZigDoc.MixProject do
   def project do
     [
       app: :zig_doc,
-      version: "0.4.0",
+      version: "0.5.0",
       elixir: "~> 1.14",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -39,7 +39,7 @@ defmodule ZigDoc.MixProject do
       {:ex_doc, "~> 0.34.2"},
       # this is also pinned to a version of zig_parser because
       # versions of zig_parser are pinned to zig versions.
-      {:zig_parser, "~> 0.4.0"},
+      {:zig_parser, "~> 0.5"},
       {:mox, "~> 1.0", only: :test}
     ]
   end
