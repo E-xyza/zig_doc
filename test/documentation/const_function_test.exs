@@ -6,7 +6,9 @@ defmodule ZigDocTest.Documentation.ConstFunctionTest do
   test "documentation is generated for consts that are functions" do
     expect_sema(Sema.new(functions: [%{name: :bar, return: :i32, params: [:i32]}]))
 
-    assert %{docs: [function]} = get_module("test/_sources/const_function.zig")
+    module = get_module("test/_sources/const_function.zig")
+    functions_group = Enum.find(module.docs_groups, &(&1.title == :Functions))
+    assert [function] = functions_group.docs
 
     assert [{:p, [], ["this is the function bar"], %{}}] = function.doc
 

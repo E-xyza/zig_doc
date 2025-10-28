@@ -47,7 +47,12 @@ defmodule Zig.Doc.Generator do
         title: "beam",
         group: :"zig code",
         module: :beam,
-        docs_groups: [:Functions, :Types, :Constants, :Variables],
+        docs_groups: [
+          %ExDoc.DocGroupNode{title: :Functions, docs: []},
+          %ExDoc.DocGroupNode{title: :Types, docs: []},
+          %ExDoc.DocGroupNode{title: :Constants, docs: []},
+          %ExDoc.DocGroupNode{title: :Variables, docs: []}
+        ],
         type: :module,
         source_url: source_url(file_path, 1, exdoc_config)
       }
@@ -66,10 +71,15 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp canonical_ordering(modulenode = %{docs: docs, typespecs: typespecs}) do
+  defp canonical_ordering(modulenode = %{docs_groups: docs_groups, typespecs: typespecs}) do
+    sorted_groups =
+      Enum.map(docs_groups, fn group ->
+        %{group | docs: Enum.sort_by(group.docs, & &1.name)}
+      end)
+
     %{
       modulenode
-      | docs: Enum.sort_by(docs, & &1.name),
+      | docs_groups: sorted_groups,
         typespecs: Enum.sort_by(typespecs, & &1.name)
     }
   end
@@ -191,13 +201,13 @@ defmodule Zig.Doc.Generator do
           |> process_body
           |> markdown_from_typedef
 
-        node = %ExDoc.TypeNode{
+        node = %ExDoc.DocNode{
           type: :type,
           id: "#{name}",
           name: name,
           signature: "#{name}",
           doc: doc_ast(const, file_path, extras: extras),
-          spec: Spec.type_from_sema(this_type),
+          specs: [Spec.type_from_sema(this_type)],
           source_url: source_url(file_path, elem(const.location, 0), exdoc_config),
           group: :Types
         } 
@@ -209,7 +219,7 @@ defmodule Zig.Doc.Generator do
         spec = {:"::", [], [{name, [], Elixir}, {this_const.type, [], Elixir}]}
 
         ## TODO: needs source_path and source_url
-        node = %ExDoc.FunctionNode{
+        node = %ExDoc.DocNode{
           id: "#{name}",
           name: name,
           arity: 0,
@@ -221,7 +231,7 @@ defmodule Zig.Doc.Generator do
           source_url: source_url(file_path, elem(const.location, 0), exdoc_config)
         }
 
-        %{acc | docs: [node | acc.docs]}
+        add_doc_to_group(acc, node, :Constants)
 
       true ->
         acc
@@ -248,7 +258,7 @@ defmodule Zig.Doc.Generator do
         annotations =
           Enum.flat_map(~w(threadlocal comptime)a, &List.wrap(if Map.get(var, &1), do: &1))
 
-        node = %ExDoc.FunctionNode{
+        node = %ExDoc.DocNode{
           id: "#{name}",
           name: name,
           arity: 0,
@@ -261,7 +271,7 @@ defmodule Zig.Doc.Generator do
           source_url: source_url(file_path, elem(var.location, 0), exdoc_config)
         }
 
-        %{acc | docs: [node | acc.docs]}
+        add_doc_to_group(acc, node, :Variables)
 
       true ->
         acc
@@ -282,7 +292,7 @@ defmodule Zig.Doc.Generator do
        ) do
     group = function_group(parameters)
 
-    node = %ExDoc.FunctionNode{
+    node = %ExDoc.DocNode{
       id: "#{name}",
       name: name,
       arity: arity,
@@ -294,18 +304,18 @@ defmodule Zig.Doc.Generator do
       source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
 
-    add_group(%{module_node | docs: [node | module_node.docs]}, group)
+    add_doc_to_group(module_node, node, group)
   end
 
   defp function_type(acc, name, arity, file_path, parameters, signature, sema, exdoc_config) do
-    node = %ExDoc.TypeNode{
+    node = %ExDoc.DocNode{
       type: :type,
       id: "#{name}",
       name: name,
       signature: signature,
       doc: doc_ast(parameters, file_path),
       arity: arity,
-      spec: Spec.typefun_from_sema(sema),
+      specs: [Spec.typefun_from_sema(sema)],
       # source_path: file_path,
       source_url: source_url(file_path, elem(parameters.location, 0), exdoc_config)
     }
@@ -424,12 +434,41 @@ defmodule Zig.Doc.Generator do
     end
   end
 
-  defp add_group(modulenode = %{docs_groups: groups}, group) do
-    if group in groups do
-      modulenode
-    else
-      %{modulenode | docs_groups: [group | groups]}
-    end
+  # Helper function to add a doc node to the appropriate group
+  defp add_doc_to_group(module_node, doc_node, group_title) do
+    # Check if this is a function with a topic like "Functions (topic)"
+    is_function_topic? =
+      is_atom(group_title) and
+        String.starts_with?(to_string(group_title), "Functions (")
+
+    updated_groups =
+      Enum.map(module_node.docs_groups, fn group ->
+        # Match either the exact title or a "Functions (topic)" variant
+        should_add? =
+          group.title == group_title or
+            (is_function_topic? and group.title == :Functions)
+
+        if should_add? do
+          %{group | docs: [doc_node | group.docs]}
+        else
+          group
+        end
+      end)
+
+    # If the group doesn't exist yet (for dynamic function topics), create it
+    group_exists? =
+      Enum.any?(module_node.docs_groups, fn group ->
+        group.title == group_title or (is_function_topic? and group.title == :Functions)
+      end)
+
+    final_groups =
+      if group_exists? do
+        updated_groups
+      else
+        [%ExDoc.DocGroupNode{title: group_title, docs: [doc_node]} | updated_groups]
+      end
+
+    %{module_node | docs_groups: final_groups}
   end
 
   defp options(%{doc_comment: nil}), do: []
@@ -452,9 +491,15 @@ defmodule Zig.Doc.Generator do
   end
 
   defp source_url(file_path, line, exdoc_config) do
-    exdoc_config.source_url_pattern
-    |> String.replace("%{path}", file_path)
-    |> String.replace("%{line}", to_string(line))
+    case exdoc_config.source_url_pattern do
+      pattern when is_function(pattern, 2) ->
+        pattern.(file_path, line)
+
+      pattern when is_binary(pattern) ->
+        pattern
+        |> String.replace("%{path}", file_path)
+        |> String.replace("%{line}", to_string(line))
+    end
   end
 
   @empty_extras %{fields: [], consts: [], functions: []}

@@ -6,7 +6,9 @@ defmodule ZigDocTest.Documentation.FunctionTest do
   test "function-level documentation is generated" do
     expect_sema(Sema.new(functions: [%{name: :foo, return: :i32, params: [:i32]}]))
 
-    assert %{docs: [function]} = get_module("test/_sources/function.zig")
+    module = get_module("test/_sources/function.zig")
+    functions_group = Enum.find(module.docs_groups, &(&1.title == :Functions))
+    assert [function] = functions_group.docs
 
     assert [{:p, [], ["this is the function foo"], %{}}] = function.doc
     assert "foo(value: i32) i32" = function.signature

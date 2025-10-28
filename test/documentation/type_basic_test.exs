@@ -15,7 +15,7 @@ defmodule ZigDocTest.Documentation.TypeBasicTest do
       """
       foo :: i32
       """,
-      type.spec
+      type.specs
     )
   end
 end

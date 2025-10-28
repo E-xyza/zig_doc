@@ -6,7 +6,9 @@ defmodule ZigDocTest.Documentation.VarTest do
   test "var documentation is generated" do
     expect_sema(Sema.new(decls: [%{name: :foo, type: :i32}]))
 
-    assert %{docs: [function]} = get_module("test/_sources/var.zig")
+    module = get_module("test/_sources/var.zig")
+    variables_group = Enum.find(module.docs_groups, &(&1.title == :Variables))
+    assert [function] = variables_group.docs
 
     assert [{:p, [], ["this is the variable foo."], %{}}] = function.doc
     assert "foo: i32" = function.signature

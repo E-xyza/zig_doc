@@ -24,7 +24,7 @@ defmodule ZigDocTest.Documentation.TypeIndirectTest do
       """
       foo :: { baz :: i32 }
       """,
-      type.spec
+      type.specs
     )
   end
 end
