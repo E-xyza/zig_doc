@@ -5,7 +5,7 @@ Parses Zig files and transforms them into ExDoc documentation.
 Note: ZigDoc is pinned to versions of ExDoc as it uses private
 features in ExDoc.
 
-This version of ZigDoc is pinned to zig 0.14.0
+This version of ZigDoc is pinned to zig 0.15.2
 
 ## Usage
 
@@ -30,7 +30,7 @@ The package can be installed by adding `zig_doc` to your list of dependencies in
 ```elixir
 def deps do
   [
-    {:zig_doc, "~> 0.5"}
+    {:zig_doc, "~> 0.6"}
   ]
 end
 ```

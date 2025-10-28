@@ -286,7 +286,7 @@ defmodule Zig.Doc.Generator do
       id: "#{name}",
       name: name,
       arity: arity,
-      doc: doc_ast(parameters, parameters),
+      doc: doc_ast(parameters, file_path),
       signature: signature,
       specs: specs,
       group: group,
