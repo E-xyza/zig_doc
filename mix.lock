@@ -8,5 +8,5 @@
   "nimble_ownership": {:hex, :nimble_ownership, "1.0.2", "fa8a6f2d8c592ad4d79b2ca617473c6aefd5869abfa02563a77682038bf916cf", [:mix], [], "hexpm", "098af64e1f6f8609c6672127cfe9e9590a5d3fcdd82bc17a377b8692fd81a879"},
   "nimble_parsec": {:hex, :nimble_parsec, "1.4.2", "8efba0122db06df95bfaa78f791344a89352ba04baedd3849593bfce4d0dc1c6", [:mix], [], "hexpm", "4b21398942dda052b403bbe1da991ccd03a053668d147d53fb8c4e0efe09c973"},
   "pegasus": {:hex, :pegasus, "0.2.6", "b4af6522326fbb2ffd1bb706e78ec05854fbcb4b03a7fe08f8db2e9de1d0be67", [:mix], [{:nimble_parsec, "~> 1.2", [hex: :nimble_parsec, repo: "hexpm", optional: false]}], "hexpm", "0ac159f0ccab7967cf90208327cc8a35788874814c8d78e19d47104d3fc049b9"},
-  "zig_parser": {:hex, :zig_parser, "0.7.0", "be5972c78387a56833599cf9358c498baf7a8ab71959721e0e9ede224b676f52", [:mix], [{:pegasus, "~> 0.2.4", [hex: :pegasus, repo: "hexpm", optional: false]}], "hexpm", "fd0b2fc343820a202787a78a40feae372386b4303717b099223d5f5c5f21f0bb"},
+  "zig_parser": {:hex, :zig_parser, "0.8.0", "bfc46c2a911fee0e1f5a895eea6e850590586d8f96986cd15e7a4f23db36efbe", [:mix], [{:pegasus, "~> 0.2.4", [hex: :pegasus, repo: "hexpm", optional: false]}], "hexpm", "2d8503b91c20ff873598bc6b0997240e30db5104772dcfd5d3bded868cb3020f"},
 }
